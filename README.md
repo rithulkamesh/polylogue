@@ -4,13 +4,19 @@ A polyphonic software synthesizer built on the architecture of a Korg monologue:
 with sync and ring modulation, a 2-pole low-pass filter with drive, two-stage envelopes and one
 LFO. Original branding, interface and sounds; nothing from the hardware is copied.
 
-VST3, AU and Standalone, macOS Apple Silicon first. C++20, JUCE 8, CMake.
+VST3 and Standalone on macOS, Windows and Linux, plus AU on macOS. C++20, JUCE 8, CMake.
 
-The panel follows the monologue: master and drive, two oscillators, mixer, filter, two envelopes,
-LFO and performance settings, plus a display with a visualizer, a preset browser and an on-screen
-keyboard. Every control can be driven and learned from MIDI.
+Two screens over one sound. **PLAY** is eight large knobs that describe a sound by how it sounds
+(wave, metal, grit, bright, attack, sustain, evolve, motion), with a live spectrum. **EDIT** is the
+full panel in the monologue's arrangement: master and drive, two oscillators, mixer, filter, two
+envelopes, LFO, chorus and performance settings. Both sit under a display with a visualizer and a
+preset browser, above an on-screen keyboard. Every control can be driven and learned from MIDI.
 
-![Polylogue](docs/panel.png)
+![PLAY screen](docs/play.png)
+![EDIT screen](docs/panel.png)
+
+Switching from PLAY to EDIT commits the knobs into the panel's parameters, so you shape a sound
+quickly on PLAY and then fine tune it on EDIT. See [docs/play-knobs.md](docs/play-knobs.md).
 
 | Spectrum | MIDI learn |
 |:--------:|:----------:|
@@ -19,8 +25,17 @@ keyboard. Every control can be driven and learned from MIDI.
 
 ## Install
 
-Grab `Polylogue-macOS.zip` from **[Releases](https://github.com/rithulkamesh/polylogue/releases)**.
-It contains the AU, the VST3 and the standalone app, as a universal binary (Apple Silicon and Intel).
+Grab the zip for your platform from **[Releases](https://github.com/rithulkamesh/polylogue/releases)**:
+
+| Platform | File | Contains |
+| --- | --- | --- |
+| macOS | `Polylogue-macOS.zip` | AU, VST3 and the standalone app, universal (Apple Silicon and Intel) |
+| Windows | `Polylogue-Windows.zip` | `Polylogue.vst3` and `Polylogue.exe` |
+| Linux | `Polylogue-Linux.zip` | `Polylogue.vst3` and the `Polylogue` standalone |
+
+On Windows copy the `.vst3` to `C:\Program Files\Common Files\VST3`; on Linux to `~/.vst3`. Then
+rescan plugins in your DAW. The Windows and Linux builds are tested in CI but have had less
+hands-on use than macOS, so please report anything odd.
 
 ### macOS (read this)
 
@@ -49,13 +64,26 @@ Rescan plugins in your DAW afterwards.
 
 ## Build
 
-Needs CMake 3.25+, Ninja, and the Xcode command line tools. Configure fetches JUCE and Catch2.
+Needs CMake 3.25+, Ninja, and a C++20 compiler (Xcode command line tools, Visual Studio 2022, or
+GCC/Clang with the JUCE Linux dependencies). Configure fetches JUCE and Catch2.
+
+```sh
+make test        # Release build of everything, then the whole test suite
+make run         # open the standalone app
+make help        # every target: sanitizers, install, dist, screenshots, ...
+```
+
+or directly:
 
 ```sh
 cmake --preset release
 cmake --build --preset release
 ctest --test-dir build/release --output-on-failure
 ```
+
+On Linux install `libasound2-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev
+libxcursor-dev libfreetype-dev libfontconfig1-dev libgl1-mesa-dev` first. On Windows use
+`cmake -B build && cmake --build build --config Release`.
 
 The plugins land in `build/release/src/plugin/Polylogue_artefacts/Release/{VST3,AU,Standalone}`.
 To install them into `~/Library` after building, configure with `-DPOLYLOGUE_COPY_PLUGINS=ON`.
@@ -68,8 +96,11 @@ Presets: `dev` (Debug), `sanitize` (ASan + UBSan, no plugin bundles), `tsan` (Th
 - **Notes, velocity, pitch bend, sustain** come from any MIDI keyboard. In the standalone app,
   choose the device under *Options*.
 - **Presets:** click the name on the display to browse by category, use `‹ ›` or the mouse wheel to
-  step through them. 30 factory sounds: pads, bells, gongs, basses, leads, plucks, ambient,
-  distorted, keys.
+  step through them. 31 factory sounds: pads, bells, gongs, basses, leads, plucks, ambient,
+  distorted, keys. Each opens with its play knobs at a sensible spot to turn from.
+- **PLAY and EDIT:** the buttons at the top switch screens with a crossfade. On PLAY the ring
+  around each knob shows what you have changed from the sound's starting point (a hollow dot is
+  where it started).
 - **Saving:** **SAVE** (or *Save As...* in the preset menu) stores the current sound under a name.
   Saved sounds appear under *User* and live in `~/Library/Application Support/Polylogue/Presets`.
   A dot after the name means the sound was edited since it was loaded.
@@ -80,8 +111,8 @@ Presets: `dev` (Debug), `sanitize` (ASan + UBSan, no plugin bundles), `tsan` (Th
 Controls answer to the monologue's own controller chart by default (attack 16, decay 17, LFO rate
 24, EG int 25, LFO int 26, drive 28, VCO 2 pitch 35, shapes 36/37, levels 39/40, cutoff 43,
 resonance 44, octave 49, waves 50/51, LFO target/wave/mode 56/58/59, sync/ring 60, EG type/target
-61/62, master level 7), so a controller set up for a monologue works unchanged. Every control shows
-its CC beneath it. To use your own controller:
+61/62, master level 7), so a controller set up for a monologue works unchanged. The eight PLAY
+knobs answer to CC 70 to 77. Every control shows its CC beneath it. To use your own controller:
 
 1. Press **MAP** and click any control, knob or switch (or right-click it and choose *MIDI Learn*).
 2. Move a control on your hardware. It is bound, and the label under the knob shows `CC n`.
@@ -92,7 +123,7 @@ survives new instances, and changing presets never unmaps your controller.
 
 Every parameter is automatable from your DAW.
 
-## The panel
+## The EDIT panel
 
 | Section | Controls |
 | --- | --- |
@@ -117,13 +148,16 @@ without retriggering, as on the monologue.
 polylogue-render --list                       # every preset: peak, loudness, tail length
 polylogue-render --preset "Glass Bell" --notes 48,55 --hold 2 --seconds 8 --out bell.wav
 polylogue-benchmark                           # CPU per scenario (use a Release build)
+polylogue-fit                                 # how well the eight play knobs reproduce each preset
 polylogue-screenshot --preset "Tam Tam" --out editor.png [--spectrum] [--map] [--touch CUTOFF]
 ```
 
 ## Development
 
-- `docs/architecture.md` describes the design, the research behind it, and how each real-time rule
-  is checked.
+- [`docs/architecture.md`](docs/architecture.md) describes the design, the research behind it, and
+  how each real-time rule is checked. [`docs/play-knobs.md`](docs/play-knobs.md) covers the PLAY
+  screen and how well eight knobs cover the sounds. [`docs/monologue-research.md`](docs/monologue-research.md)
+  records what is publicly known about the hardware. See also [`CHANGELOG.md`](CHANGELOG.md).
 - `scripts/format.sh` formats the code (K&R braces, 4 spaces, 100 columns; needs `clang-format`).
   `scripts/format.sh --check` verifies without changing files.
 - The DSP (`src/dsp`) has no JUCE dependency and is tested offline; `src/host` is the JUCE

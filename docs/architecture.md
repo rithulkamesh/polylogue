@@ -4,13 +4,15 @@ Polylogue is a polyphonic software synthesizer built around the *architecture an
 Korg monologue: two oscillators, a small mixer, a 2-pole low-pass filter with a drive stage and a
 two-stage envelope and one LFO. It is not a hardware clone. Branding, UI and presets are original.
 
-**Product direction.** The front panel follows the monologue's arrangement (master and drive, the
-oscillators, mixer, filter, envelopes, LFO) in the visual language of the sibling `chorale`
-project, with an LCD, a visualizer, a preset browser and an on-screen keyboard. The first version
-of this project exposed only eight knobs; that hid too much of the sound and was replaced by the
-full panel. The sequencer and motion lanes of the original brief are still deferred (§5.6).
+**Product direction.** The **EDIT** panel follows the monologue's arrangement (master and drive,
+the oscillators, mixer, filter, envelopes, LFO) in the visual language of the sibling `chorale`
+project, with an LCD, a visualizer, a preset browser and an on-screen keyboard. The **PLAY** screen
+is eight large knobs that describe a sound by how it sounds and stay in step with the panel (see
+[play-knobs.md](play-knobs.md)). An early eight-knob-only interface hid too much of the sound, which
+is why the full panel exists; PLAY is a second view of the same sound, not a replacement. The
+sequencer and motion lanes of the original brief are still deferred (§5.6).
 
-Status: all eight implementation phases (§11) are complete. This document describes what is built.
+Status: all nine implementation phases (§11) are complete. This document describes what is built.
 
 This document is the contract for the implementation. Section 1 records what is publicly
 documented about the monologue and how each item is treated; the remaining sections describe what
@@ -134,61 +136,38 @@ value-to-position split for switch CCs is not in the chart *UNKNOWABLE*.
 
 ### 2.1 Per voice
 
-```
-                     note + octave + tune + bend + glide
-                                     │
-                 ┌───────────────────┴───────────────────┐
-                 ▼                                       ▼
- ┌────────────────────────┐   sync reset   ┌─────────────────────────┐
- │ OSC 1  saw · tri · sqr │ ─────────────▶ │ OSC 2  saw · tri · noise │◀── range · cents
- │ shape                  │                │ shape                   │
- └───────────┬────────────┘                └───────────┬─────────────┘
-             │ ─────────────────── ring ───────────────┤
-             ▼                                         ▼   (sync/ring: off · sync · ring; ring
-          ┌───────────────────── MIX ──────────────────────┐   replaces OSC 2 with OSC1 × OSC2)
-          │       level 1                 level 2          │
-          └────────────────────────┬───────────────────────┘
-                                   ▼
-                         ┌───────────────────┐
-     cutoff ─────────────▶      FILTER       │◀── resonance
-     key track · velocity│  2-pole LP  (SVF) │◀── MOD ENV · LFO (via the matrix)
-                         └─────────┬─────────┘
-                                   ▼
-                         ┌───────────────────┐
-                         │        AMP        │◀── AMP ENV · velocity
-                         └─────────┬─────────┘
-                                   ▼
-                         ┌───────────────────┐
-                         │       DRIVE       │
-                         └─────────┬─────────┘
-                                   ▼
-                              voice out (mono)
-
- MOD ENV ──▶ target: cutoff │ pitch (osc 1+2) │ pitch 2 (osc 2)
- LFO     ──▶ target: cutoff │ pitch (osc 1+2) │ shape (osc 1+2)
+```mermaid
+flowchart TD
+    pitch["note + octave + tune + bend + glide"] --> osc1
+    pitch --> osc2
+    osc1["OSC 1<br/>saw · triangle · square · sine (FM)<br/>shape"] -- "sync reset" --> osc2["OSC 2<br/>saw · triangle · noise · sine (FM)<br/>shape · range · cents"]
+    osc1 -. "ring · FM" .- osc2
+    osc1 --> mix
+    osc2 --> mix
+    mix["MIX<br/>level 1 · level 2<br/>(ring replaces OSC 2 with OSC 1 × OSC 2)"] --> filter
+    filter["FILTER<br/>2-pole low-pass (SVF)<br/>cutoff · resonance · key track · velocity"] --> amp
+    amp["AMP<br/>amp envelope · velocity"] --> drive
+    drive["DRIVE"] --> out(["voice out (mono)"])
+    matrix["Mod matrix<br/>MOD ENV · LFO"] -. "pitch · pitch 2 · level 1/2" .-> osc1
+    matrix -. "pitch · pitch 2 · shape · level" .-> osc2
+    matrix -. "cutoff" .-> filter
 ```
 
 ### 2.2 System
 
-```
- host MIDI ─▶ MidiTranslator ─▶ engine events ───────────┐
-                  └──▶ other CCs ─▶ MidiMapper ─▶ knob overlay + FIFO ─▶ (timer) ─▶ parameter
- host params ─▶ atomics ─▶ ParamValues ─▶ SynthSettings ──┤
-                                                          ▼
-                                            ┌───────────────────────┐
-                                            │        Engine         │
-                                            │ sub-blocks ≤ 64, mix, │
-                                            │ output gain, limiter  │
-                                            └───────────┬───────────┘
-                                                        ▼
-                                            ┌───────────────────────┐
-                                            │     VoiceManager      │
-                                            │ poly · mono · glide   │
-                                            └───────────┬───────────┘
-                                                        ▼
-                                            Voice × 16 (limit ≤ 16)
-                                                        ▼
-                                  L/R (identical) ─▶ host     mono ─▶ ScopeBuffer ─▶ LCD visualizer
+```mermaid
+flowchart TD
+    midi["Host MIDI"] --> translate["MidiTranslator"]
+    translate -- "notes, bend, pedal" --> engine
+    translate -- "other CCs" --> mapper["MidiMapper"]
+    mapper --> overlay["Control overlay + FIFO"]
+    overlay -. "message-thread timer" .-> parameter["Host parameters"]
+    parameter --> atomics["Atomics"] --> values["ParamValues"]
+    overlay --> values
+    values --> effective["effectiveValues<br/>play knobs vs home"] --> settings["SynthSettings"] --> engine
+    engine["Engine<br/>sub-blocks ≤ 64 · mix · gain · chorus · limiter"] --> vm["VoiceManager<br/>poly · mono · glide"] --> voices["Voice × 16"]
+    engine --> host["L/R (identical) → host"]
+    engine --> scope["ScopeBuffer → LCD and PLAY spectrum"]
 ```
 
 ## 3. Voice architecture
@@ -196,17 +175,17 @@ value-to-position split for switch CCs is not in the chart *UNKNOWABLE*.
 A `Voice` is a plain value type. It owns every DSP component it needs, holds no pointers to other
 voices, allocates nothing, and is driven by `noteOn`, `changeNote`, `noteOff`, `fadeOut`, `render`.
 
-```
-Voice
- ├─ Glide          pitch slew in semitones (portamento), double precision
- ├─ Oscillator ×2  band-limited, phase in double, sync reset with sub-sample accuracy
- ├─ Noise          xorshift32, seeded per voice
- ├─ Filter         trapezoidal state-variable, soft-limited integrators
- ├─ Envelope ×2    amp, mod; types A/D · A/G/D · Gate
- ├─ Lfo            wraps an Oscillator: saw/tri/square, fast/slow/one-shot
- ├─ ModMatrix      sources × destinations, every amount smoothed
- ├─ Drive          level-compensated tanh, first-order ADAA, tone control
- └─ Smoother ×8    pitch offset, cutoff, resonance, osc levels and shapes, drive
+```mermaid
+flowchart LR
+    Voice --> glide["Glide<br/>pitch slew in semitones, double precision"]
+    Voice --> osc["Oscillator × 2<br/>band-limited, phase in double,<br/>sub-sample sync reset"]
+    Voice --> noise["Noise<br/>xorshift32, seeded per voice"]
+    Voice --> filter["Filter<br/>trapezoidal SVF, soft-limited integrators"]
+    Voice --> env["Envelope × 2<br/>amp, mod: A/D · A/G/D · Gate"]
+    Voice --> lfo["Lfo<br/>saw · triangle · square, fast · slow · one-shot"]
+    Voice --> matrix["ModMatrix<br/>sources × destinations, smoothed"]
+    Voice --> drive["Drive<br/>level-compensated tanh, first-order ADAA, tone"]
+    Voice --> smoothers["Smoother × 8<br/>pitch offset, cutoff, resonance, levels, shapes, drive"]
 ```
 
 Everything time-varying is evaluated **per sample**, because the monologue's FAST LFO reaches
@@ -228,7 +207,8 @@ never disagree about a mapping. IDs are **append-only**: renaming or reusing one
 projects. A test pins the full ID list.
 
 Kinds: `Float` (curves `Linear`, `Exponential`, `Power`, `SymmetricPower`; optional step), `Int`,
-`Choice`, `Bool`. All 39 parameters are host-automatable. A per-block `ParamValues` (plain units)
+`Choice`, `Bool`. The 39 sound parameters and the eight play knobs are host-automatable; the eight
+*home* positions are saved with the sound but hidden from hosts (`ParamSpec::automatable`). A per-block `ParamValues` (plain units)
 is converted once into `SynthSettings`, the typed struct the voices read, so DSP modules never
 index into the table. A test asserts that the table's defaults reproduce `SynthSettings{}`.
 
@@ -417,9 +397,31 @@ Changing key mode releases everything held.
 
 A dense table of smoothed amounts, `[source][destination]`, evaluated per sample.
 
-```
-sources        MOD_ENV (0…1)   LFO (−1…+1)
-destinations   OSC1_PITCH  OSC2_PITCH  OSC1_SHAPE  OSC2_SHAPE  CUTOFF
+```mermaid
+flowchart LR
+    subgraph sources
+        ENV["MOD_ENV (0…1)"]
+        LFO["LFO (−1…+1)"]
+    end
+    subgraph destinations
+        P1["OSC1_PITCH"]
+        P2["OSC2_PITCH"]
+        S1["OSC1_SHAPE"]
+        S2["OSC2_SHAPE"]
+        CUT["CUTOFF"]
+        L1["OSC1_LEVEL"]
+        L2["OSC2_LEVEL"]
+    end
+    ENV --> CUT
+    ENV --> P1
+    ENV --> P2
+    ENV --> L1
+    ENV --> L2
+    LFO --> P1
+    LFO --> P2
+    LFO --> S1
+    LFO --> S2
+    LFO --> CUT
 ```
 
 Amounts are in destination units (semitones, shape 0…1, octaves). `configure(settings)` writes
@@ -477,19 +479,19 @@ How the rules are met, and how they are checked:
 
 ## 9. Plugin architecture
 
-```
-polylogue_dsp       static lib, pure C++20, no JUCE            tests, tools, everything below
-polylogue_presets   static lib, pure C++20                     31 factory presets
-polylogue_offline   static lib, pure C++20                     OfflineRenderer, WavWriter
-polylogue_host      INTERFACE sources, JUCE non-GUI            ParameterLayout, MidiTranslator, MidiMapper,
-                                                                PresetManager, ScopeBuffer, PolylogueProcessor
-polylogue_ui        INTERFACE sources, JUCE GUI                Theme, LookAndFeel, Knob, Lcd, ScopeView,
-                                                                PresetMenu, PluginEditor
-Polylogue           juce_add_plugin: VST3, AU, Standalone      PluginEntry only
-polylogue-render    CLI                                        preset + notes → WAV, preset loudness table
-polylogue-benchmark CLI                                        CPU per scenario
-polylogue-screenshot CLI                                       editor → PNG, headless
-polylogue_dsp_tests / polylogue_host_tests                     Catch2
+```mermaid
+flowchart TB
+    plugin["Polylogue<br/>VST3 · AU · Standalone<br/>(PluginEntry only)"] --> ui["polylogue_ui<br/>INTERFACE sources, JUCE GUI<br/>Theme, LookAndFeel, Knob, Lcd, ScopeView, PluginEditor, …"]
+    ui --> host["polylogue_host<br/>INTERFACE sources, JUCE non-GUI<br/>ParameterLayout, MidiTranslator, MidiMapper,<br/>PresetManager, ScopeBuffer, PolylogueProcessor"]
+    host --> presets["polylogue_presets<br/>31 factory presets and home positions"]
+    host --> dsp["polylogue_dsp<br/>pure C++20, no JUCE"]
+    presets --> dsp
+    offline["polylogue_offline<br/>OfflineRenderer, WavWriter"] --> dsp
+    tools["polylogue-render · benchmark · fit · screenshot"] --> offline
+    tools --> presets
+    tests["Catch2: polylogue_dsp_tests, polylogue_host_tests"] --> ui
+    tests --> host
+    tests --> dsp
 ```
 
 JUCE-facing code is an `INTERFACE` source library so each consumer (plugin, tests, screenshot
@@ -520,27 +522,31 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
   CC that another control owns moves it. The map lives in the session and is mirrored to
   `~/Library/Application Support/Polylogue/midi-map.xml` (one `<Bind id cc>` per parameter), which
   wins on load so a new instance keeps the user's controller setup.
+- **Play knobs:** eight parameters (`axis_*`, CC 70–77 by default) and eight hidden home positions
+  (`home_*`). The processor plays `dsp::effectiveValues(stored)`; `PolylogueProcessor::bakeAxes`
+  commits the offsets when the editor leaves PLAY. See [play-knobs.md](play-knobs.md).
 - **Presets:** 31 factory presets as `constexpr` tables of overrides on the defaults, in nine
   categories (Pad, Bell, Gong, Bass, Lead, Pluck, Ambient, Distorted, Keys), loudness-matched with
   `polylogue-render --list` to within 2.4 dB of each other (Wind, capped by the +6 dB level range,
-  sits 3.5 dB below the loudest). A preset sets *every* parameter, so loading
-  is deterministic. User presets are XML in `~/Library/Application Support/Polylogue/Presets/`;
+  sits 3.5 dB below the loudest). A preset also sets its play knobs' home
+  position (found by `polylogue-fit`, stored in `FactoryAxes.inc`). Loading is deterministic. User presets are XML in `~/Library/Application Support/Polylogue/Presets/`;
   damaged files are skipped. The MIDI map is deliberately not part of a preset. Presets are also
   the host's programs.
 - **UI (chorale's language):** near-black canvas, IBM Plex (embedded, OFL), white ink, one neutral
   accent, chorale's knob (rim, pointer, 1 px track, 2 px arc, dot) and pill chips for switches. An
   **LCD** on top (preset name and category, prev/next, the last control touched with its value
   and target, MIDI-learn prompts, and a visualizer), then the panel in the monologue's order
-  (row 1: MASTER, VCO 1, VCO 2, MIXER, FILTER; row 2: AMP EG, MOD EG, LFO, PLAY; then octave, tune,
+  (the **EDIT** screen; row 1: MASTER, VCO 1, VCO 2, MIXER, FILTER; row 2: AMP EG, MOD EG, LFO, PLAY; then octave, tune,
   bend range, glide) with a label and its CC under every control, then an on-screen keyboard
-  (C2–C7, a `MidiKeyboardComponent` restyled to the panel). Two small buttons: **SAVE** and
-  **MAP**, and a MIDI activity light. Keys played on screen reach the audio thread through a
+  (C2–C7, a `MidiKeyboardComponent` restyled to the panel). Four small buttons: **PLAY** / **EDIT** and **SAVE** / **MAP**, and a MIDI activity light. PLAY
+  replaces the panel with a live spectrum and the eight play knobs; the two screens crossfade, and
+  every knob glides to new values instead of jumping. Keys played on screen reach the audio thread through a
   lock-free FIFO; MIDI notes come back through another so a hardware keyboard lights the keys. The visualizer is an
   oscilloscope with a rising-edge trigger and auto-gain, or a spectrum; click to switch. Clicking
   the preset name opens a categorised menu (with *Save As* and *Delete*); the mouse wheel steps
   through presets. Anything that moves a control (mouse, automation, a controller) shows up in the
   LCD. The window is resizable at a fixed aspect ratio.
-- **Formats:** VST3, AU, Standalone. macOS arm64 first. Standalone keeps its last state between
+- **Formats:** VST3, AU (macOS), Standalone, on macOS, Windows and Linux. Standalone keeps its last state between
   launches (JUCE's wrapper persists it) and offers MIDI device selection.
 
 ## 10. Build, quality, tooling
@@ -556,7 +562,10 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
   JUCE-facing sources get the same flags as per-file properties.
 - `.clang-format`: K&R (function bodies open on their own line, every other brace attaches),
   4-space indent, 100 columns; `scripts/format.sh [--check]`. `.editorconfig` for editors.
-- CI: `.github/workflows/build.yml` builds and tests on macOS arm64.
+- CI: `.github/workflows/build.yml` runs as parallel jobs: format check, ASan/UBSan and TSan on
+  Linux, and a Release build with the full test suite on macOS, Linux and Windows (MSVC warnings at
+  `/W4 /WX`). Concurrent runs of a branch cancel each other. `release.yml` builds, tests and packages
+  all three platforms on a `v*` tag.
 
 ## 11. Implementation phases
 
@@ -570,6 +579,7 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
 | 6 | Parameters, state, presets, MIDI | Done: table-driven, 31 presets, learnable CC map |
 | 7 | UI | Done: LCD, full panel, visualizer, keyboard, preset menu, save, map |
 | 8 | Tests, profiling, cleanup | Done: see §13 |
+| 9 | PLAY screen | Done: eight-knob layer over the panel, presets' home positions, `polylogue-fit` |
 
 ## 12. Decisions log
 
@@ -590,6 +600,10 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
 | Voice capacity | 16 compile-time, runtime limit | Keeps "no allocation"; growth is one constant |
 | Level default | 0 dB | The engine already reserves headroom (0.35 and a soft limiter) |
 | Mod wheel / aftertouch | Deferred | Not on the monologue; the matrix has room |
+| Eight play knobs | Offsets from a stored home, not a replacement for the parameters | A preset plays exactly as made, hand tuning survives, and the result never depends on the order knobs were turned |
+| Baking | On leaving PLAY | EDIT then shows the sound as it plays, so fine tuning starts from what you hear |
+| Knob axes | Chosen by what is heard, checked by fitting every preset | Coverage is measured (`polylogue-fit`), not assumed |
+| Platforms | macOS, Linux and Windows in CI and releases | The DSP is portable; only the JUCE layer needed platform care |
 
 ## 13. Verification and measured performance
 
@@ -605,10 +619,11 @@ Automated (`ctest --preset dev`; the `sanitize` and `tsan` presets run the same 
 | Engine | Sample-exact note starts; identical output for host block sizes 1–4096; bend; pedal; limiter; polyphony limit; 128 notes × velocities × 2 rates; 3-second random MIDI floods |
 | Sample rates | 22.05–192 kHz: every preset renders finite and unclipped; pitch exact |
 | Parameters | Stable IDs, ranges, curves, formatting and parsing round trips; defaults ⇒ default settings |
-| Presets | 30 legal, unique, loud enough, loudness-matched, finite, terminating; categories behave (plucks die, gongs ring, pads swell) |
+| Presets | 31 legal, unique, loud enough, loudness-matched, finite, terminating; categories behave (plucks die, gongs ring, pads swell); each has its own home position |
+| Play knobs | Every knob position is a legal, finite, audible sound; at home the stored sound is untouched; one knob moves only what it drives; hand tuning survives; baking keeps the sound; the panel shows the sound after switching screens |
 | Host | Layout ↔ table; state round trip, forward/backward compatibility, garbage rejection; MIDI translation; controller map, learn, persistence; CC → knob → parameter; presets (factory, user, damaged); programs |
 | Real-time | Zero allocations on the audio path; no data races (TSan) |
-| UI | Editor constructs, lays out, and paints at every size, for every preset, in every visualizer state |
+| UI | Editor constructs, lays out, and paints at every size, for every preset, in every visualizer state, on both screens |
 
 Measured on Apple Silicon, Release, 48 kHz, 512-sample blocks (`polylogue-benchmark`), share of
 one core:
