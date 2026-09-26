@@ -48,7 +48,9 @@ TEST_CASE("the allocation guard notices allocations")
         return;
     }
     AllocationGuard guard;
-    auto* leak = new std::vector<float>(1000);
+    auto* block = new std::vector<float>(1000);
+    // An optimizer may delete an unused allocation, so make this one observable.
+    asm volatile("" : : "r"(block->data()) : "memory");
     CHECK(guard.count() >= 1);
-    delete leak;
+    delete block;
 }
