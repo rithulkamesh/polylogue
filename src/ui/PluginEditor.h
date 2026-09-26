@@ -18,7 +18,7 @@ namespace polylogue::ui {
 // The whole interface: the display, the panel of controls, the keyboard, and two small buttons.
 class PluginEditor final : public juce::AudioProcessorEditor, private juce::Timer {
 public:
-    explicit PluginEditor(host::PolylogueProcessor& processor);
+    explicit PluginEditor(host::PolylogueProcessor& owner);
     ~PluginEditor() override;
 
     void paint(juce::Graphics& g) override;

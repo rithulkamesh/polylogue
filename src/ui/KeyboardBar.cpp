@@ -17,8 +17,8 @@ constexpr float kMouseVelocity = 0.8f;
 // Draws the keys in the panel's own dark language instead of JUCE's ivory.
 class KeyboardBar::Keys final : public juce::MidiKeyboardComponent {
 public:
-    explicit Keys(juce::MidiKeyboardState& state)
-        : juce::MidiKeyboardComponent(state, juce::MidiKeyboardComponent::horizontalKeyboard)
+    explicit Keys(juce::MidiKeyboardState& keyState)
+        : juce::MidiKeyboardComponent(keyState, juce::MidiKeyboardComponent::horizontalKeyboard)
     {
         setAvailableRange(kLowestNote, kHighestNote);
         setScrollButtonsVisible(false);

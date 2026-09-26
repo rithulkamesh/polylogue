@@ -58,11 +58,8 @@ juce::String choiceText(const host::PolylogueProcessor& processor, dsp::Param pa
 
 }  // namespace
 
-PluginEditor::PluginEditor(host::PolylogueProcessor& processor)
-    : juce::AudioProcessorEditor(processor),
-      processor_(processor),
-      lcd_(processor),
-      keyboard_(processor)
+PluginEditor::PluginEditor(host::PolylogueProcessor& owner)
+    : juce::AudioProcessorEditor(owner), processor_(owner), lcd_(owner), keyboard_(owner)
 {
     setLookAndFeel(&lookAndFeel_.get());
     setOpaque(true);
@@ -73,9 +70,9 @@ PluginEditor::PluginEditor(host::PolylogueProcessor& processor)
     for (const Section& section : panelSections()) {
         for (const Cell& cell : section.cells) {
             if (cell.kind == CellKind::Knob)
-                controls_.push_back(std::make_unique<Knob>(processor, cell.param, cell.label));
+                controls_.push_back(std::make_unique<Knob>(owner, cell.param, cell.label));
             else
-                controls_.push_back(std::make_unique<ChipGroup>(processor, cell.param, cell.label,
+                controls_.push_back(std::make_unique<ChipGroup>(owner, cell.param, cell.label,
                                                                 cell.kind == CellKind::ChipsColumn
                                                                     ? ChipGroup::Layout::Column
                                                                     : ChipGroup::Layout::Row));
