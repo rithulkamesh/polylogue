@@ -42,6 +42,9 @@ TEST_CASE("rendering audio never allocates, for any preset")
     }
 }
 
+// A volatile store is observable, so the allocation it points at cannot be optimised away.
+float* volatile gObservedBlock = nullptr;
+
 TEST_CASE("the allocation guard notices allocations")
 {
     if (!allocationTrackingAvailable()) {
@@ -51,7 +54,7 @@ TEST_CASE("the allocation guard notices allocations")
     AllocationGuard guard;
     auto* block = new std::vector<float>(1000);
     // An optimizer may delete an unused allocation, so make this one observable.
-    asm volatile("" : : "r"(block->data()) : "memory");
+    gObservedBlock = block->data();
     CHECK(guard.count() >= 1);
     delete block;
 }
