@@ -5,3 +5,4 @@ compile_commands.json
 .DS_Store
 *.wav
 !tests/data/*.wav
+*.zip

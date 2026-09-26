@@ -31,12 +31,13 @@ TEST_CASE("parameter ids are unique and non-empty")
 TEST_CASE("parameter ids are stable")
 {
     const std::vector<std::string> expected = {
-        "level",       "polyphony",  "key_mode",       "octave",     "tune",       "bend_range",
-        "glide_time",  "glide_mode", "drive",          "osc1_wave",  "osc1_shape", "osc2_wave",
-        "osc2_octave", "osc2_pitch", "osc2_sync_ring", "osc2_shape", "osc1_level", "osc2_level",
-        "cutoff",      "resonance",  "key_track",      "vel_cutoff", "amp_type",   "amp_attack",
-        "amp_decay",   "vel_amp",    "env_type",       "env_attack", "env_decay",  "env_int",
-        "env_target",  "lfo_wave",   "lfo_mode",       "lfo_rate",   "lfo_int",    "lfo_target"};
+        "level",       "polyphony",   "key_mode",       "octave",     "tune",       "bend_range",
+        "glide_time",  "glide_mode",  "drive",          "osc1_wave",  "osc1_shape", "osc2_wave",
+        "osc2_octave", "osc2_pitch",  "osc2_sync_ring", "osc2_shape", "osc1_level", "osc2_level",
+        "cutoff",      "resonance",   "key_track",      "vel_cutoff", "amp_type",   "amp_attack",
+        "amp_decay",   "vel_amp",     "env_type",       "env_attack", "env_decay",  "env_int",
+        "env_target",  "lfo_wave",    "lfo_mode",       "lfo_rate",   "lfo_int",    "lfo_target",
+        "chorus_mix",  "chorus_rate", "chorus_depth"};
     REQUIRE(expected.size() == kParamCount);
     for (std::size_t i = 0; i < expected.size(); ++i)
         CHECK(expected[i] == paramSpecs()[i].id);
@@ -127,6 +128,8 @@ TEST_CASE("values format for the display")
 {
     CHECK(formatValue(paramSpec(Param::Cutoff), 8000.0f) == "8.00 kHz");
     CHECK(formatValue(paramSpec(Param::Cutoff), 820.0f) == "820 Hz");
+    CHECK(formatValue(paramSpec(Param::Cutoff), 45.0f) == "45.0 Hz");
+    CHECK(formatValue(paramSpec(Param::ChorusRate), 0.6f) == "0.60 Hz");
     CHECK(formatValue(paramSpec(Param::AmpAttack), 0.002f) == "2.0 ms");
     CHECK(formatValue(paramSpec(Param::AmpDecay), 0.25f) == "250 ms");
     CHECK(formatValue(paramSpec(Param::AmpDecay), 2.5f) == "2.50 s");

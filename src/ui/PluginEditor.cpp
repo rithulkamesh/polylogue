@@ -27,8 +27,8 @@ constexpr float kTitleHeight = 16.0f;
 constexpr float kPanelRowHeight = 108.0f;
 constexpr float kStripHeight = 70.0f;
 constexpr float kRowGap = 8.0f;
-constexpr float kKnobWidth = 72.0f;
-constexpr float kColumnChipWidth = 62.0f;
+constexpr float kKnobWidth = 70.0f;
+constexpr float kColumnChipWidth = 58.0f;
 constexpr float kRowChipWidth = 40.0f;
 constexpr float kKeyboardHeight = 80.0f;
 
@@ -38,7 +38,8 @@ float cellWidth(const Cell& cell)
     case CellKind::Knob:
         return kKnobWidth;
     case CellKind::ChipsColumn:
-        return kColumnChipWidth;
+        return kColumnChipWidth *
+               static_cast<float>(ChipGroup::columns(dsp::paramSpec(cell.param)));
     case CellKind::ChipsRow:
         return kRowChipWidth * static_cast<float>(ChipGroup::positions(dsp::paramSpec(cell.param)));
     }
@@ -122,32 +123,42 @@ void PluginEditor::resized()
     lcd_.setBounds(scaled({kMargin, y, contentWidth, kLcdHeight}));
     y += kLcdHeight + 12.0f;
 
+    auto sectionWidth = [](const Section& section) {
+        float width = 0.0f;
+        for (const Cell& cell : section.cells)
+            width += cellWidth(cell);
+        return width;
+    };
+
     marks_.clear();
     std::size_t next = 0;
     for (int row = 0; row <= 2; ++row) {
-        const bool strip = row == 2;
-        const float titleHeight = strip ? 0.0f : kTitleHeight;
-        const float cellsHeight = strip ? kStripHeight : kPanelRowHeight;
+        const float cellsHeight = row == 2 ? kStripHeight : kPanelRowHeight;
 
-        float x = kMargin;
+        // Each row is centred as a whole, so a short one sits in the middle of the panel.
+        float rowWidth = -kSectionGap;
+        for (const Section& section : panelSections()) {
+            if (section.row == row)
+                rowWidth += sectionWidth(section) + kSectionGap;
+        }
+
+        float x = kMargin + (contentWidth - rowWidth) / 2.0f;
         for (const Section& section : panelSections()) {
             if (section.row != row)
                 continue;
 
-            float width = 0.0f;
-            for (const Cell& cell : section.cells)
-                width += cellWidth(cell);
-            marks_.push_back({section.title, {x, y, width, titleHeight}});
+            const float width = sectionWidth(section);
+            marks_.push_back({section.title, {x, y, width, kTitleHeight}});
 
             float cellX = x;
             for (const Cell& cell : section.cells) {
                 const float w = cellWidth(cell);
-                controls_[next++]->setBounds(scaled({cellX, y + titleHeight, w, cellsHeight}));
+                controls_[next++]->setBounds(scaled({cellX, y + kTitleHeight, w, cellsHeight}));
                 cellX += w;
             }
             x += width + kSectionGap;
         }
-        y += titleHeight + cellsHeight + kRowGap;
+        y += kTitleHeight + cellsHeight + kRowGap;
     }
 
     keyboard_.setBounds(scaled({kMargin, y + 2.0f, contentWidth, kKeyboardHeight}));

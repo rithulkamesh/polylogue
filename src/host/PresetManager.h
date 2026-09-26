@@ -4,6 +4,7 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <functional>
 #include <vector>
 
 namespace polylogue::host {
@@ -44,10 +45,12 @@ public:
     // Restores a saved session, including whether it had been edited since its preset was loaded.
     void restore(const juce::String& name, const dsp::ParamValues& values, bool modified);
 
+    // Called on the message thread whenever the loaded sound or the preset list changes, so the
+    // plug-in can tell the host to refresh the patch name it shows.
+    void setChangeCallback(std::function<void()> callback) { onChanged_ = std::move(callback); }
+
     const juce::String& currentName() const { return currentName_; }
     bool isModified() const;
-    // Index into the factory list, or -1 for a user preset or an unnamed sound.
-    int currentFactoryIndex() const;
 
 private:
     void applyValues(const dsp::ParamValues& values);
@@ -59,6 +62,7 @@ private:
     juce::String currentName_ = "Init";
     dsp::ParamValues loaded_ = dsp::ParamValues::defaults();
     bool forceModified_ = false;
+    std::function<void()> onChanged_;
 };
 
 }  // namespace polylogue::host

@@ -7,7 +7,8 @@ namespace polylogue::dsp {
 enum class Waveform {
     Saw,
     Triangle,
-    Square
+    Square,
+    Sine
 };
 
 // Band-limited oscillator. `shape` in [0, 1] morphs each waveform: saw blends in a phase-shifted
@@ -32,8 +33,9 @@ public:
     double timeToWrap() const { return (1.0 - phase_) / increment_; }
 
     // `resetIn` is when, as a fraction of this sample, a hard-sync master restarts this
-    // oscillator, or kNoReset.
-    float process(double resetIn = kNoReset);
+    // oscillator, or kNoReset. `phaseModulation` shifts the phase for this sample, in radians;
+    // it suits the continuous sine, where it is FM, and is not band-limited.
+    float process(double resetIn = kNoReset, double phaseModulation = 0.0);
 
 private:
     double value(double t) const;

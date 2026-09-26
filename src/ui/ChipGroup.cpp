@@ -5,6 +5,7 @@
 namespace polylogue::ui {
 namespace {
 
+constexpr int kMaxSingleColumn = 4;
 constexpr float kGapRatio = 0.18f;
 constexpr float kMaxColumnChip = 20.0f;
 constexpr float kMaxRowChip = 24.0f;
@@ -14,6 +15,11 @@ constexpr float kMaxRowChip = 24.0f;
 int ChipGroup::positions(const dsp::ParamSpec& spec)
 {
     return static_cast<int>(spec.max - spec.min) + 1;
+}
+
+int ChipGroup::columns(const dsp::ParamSpec& spec)
+{
+    return positions(spec) > kMaxSingleColumn ? 2 : 1;
 }
 
 ChipGroup::ChipGroup(host::PolylogueProcessor& processor, dsp::Param param, juce::String label,
@@ -46,11 +52,18 @@ juce::Rectangle<float> ChipGroup::chipBounds(int position) const
     const float scale = static_cast<float>(getHeight()) / 108.0f;
 
     if (layout_ == Layout::Column) {
-        const float slots = static_cast<float>(count) + kGapRatio * static_cast<float>(count - 1);
+        const int columns = ChipGroup::columns(dsp::paramSpec(param()));
+        const int rows = (count + columns - 1) / columns;
+        const float slots = static_cast<float>(rows) + kGapRatio * static_cast<float>(rows - 1);
         const float chip = juce::jmin(area.getHeight() / slots, kMaxColumnChip * scale);
         const float gap = chip * kGapRatio;
-        return {area.getX() + 4.0f, area.getY() + static_cast<float>(position) * (chip + gap),
-                area.getWidth() - 8.0f, chip};
+        const float columnWidth = (area.getWidth() - 8.0f) / static_cast<float>(columns);
+        const int row = position / columns;
+        const int column = position % columns;
+        return {area.getX() + 4.0f + static_cast<float>(column) * columnWidth +
+                    (column > 0 ? gap : 0.0f),
+                area.getY() + static_cast<float>(row) * (chip + gap),
+                columnWidth - (columns > 1 ? gap : 0.0f), chip};
     }
 
     const float slots = static_cast<float>(count) + kGapRatio * static_cast<float>(count - 1);

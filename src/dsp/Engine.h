@@ -1,5 +1,6 @@
 #pragma once
 
+#include "dsp/Chorus.h"
 #include "dsp/MidiEvent.h"
 #include "dsp/Settings.h"
 #include "dsp/Smoother.h"
@@ -30,6 +31,7 @@ private:
     void renderSubBlock(float* left, float* right, int count);
 
     VoiceManager voices_;
+    Chorus chorus_;
     SynthSettings settings_;
     Smoother outputGain_;
     float bend_ = 0.0f;

@@ -206,3 +206,80 @@ TEST_CASE("presets do not touch the controller map")
     rig.processor.presets().loadFactory(5);
     CHECK(rig.processor.midiMapper().controllerFor(0) == 33);
 }
+
+TEST_CASE("the host is told whenever the loaded sound or the preset list changes")
+{
+    Rig rig;
+    auto& manager = rig.processor.presets();
+    int calls = 0;
+    manager.setChangeCallback([&calls] { ++calls; });
+
+    manager.loadFactory(3);
+    CHECK(calls == 1);
+
+    REQUIRE(manager.saveUser("Announced"));
+    CHECK(calls >= 2);
+
+    const int afterSave = calls;
+    manager.rescanUserPresets();  // nothing changed
+    CHECK(calls == afterSave);
+
+    REQUIRE(manager.deleteUser(*find(manager, "Announced")));
+    CHECK(calls > afterSave);
+
+    manager.setChangeCallback({});
+}
+
+TEST_CASE("a host listener hears that the program changed")
+{
+    struct Listener : juce::AudioProcessorListener {
+        void audioProcessorParameterChanged(juce::AudioProcessor*, int, float) override {}
+        void audioProcessorChanged(juce::AudioProcessor*, const ChangeDetails& details) override
+        {
+            programChanged = programChanged || details.programChanged;
+        }
+        bool programChanged = false;
+    } listener;
+
+    Rig rig;
+    rig.processor.addListener(&listener);
+    rig.processor.presets().loadFactory(8);
+    CHECK(listener.programChanged);
+    rig.processor.removeListener(&listener);
+}
+
+TEST_CASE("the host's program list includes the user's own sounds")
+{
+    Rig rig;
+    auto& processor = rig.processor;
+    const int factoryCount = processor.getNumPrograms();
+
+    rig.set(dsp::Param::Cutoff, 1111.0f);
+    REQUIRE(processor.presets().saveUser("My Program"));
+    REQUIRE(processor.getNumPrograms() == factoryCount + 1);
+
+    const int last = processor.getNumPrograms() - 1;
+    CHECK(processor.getProgramName(last) == "My Program");
+    CHECK(processor.getCurrentProgram() == last);
+
+    processor.setCurrentProgram(0);
+    CHECK(processor.presets().currentName() == juce::String(presets::factoryPresets()[0].name));
+    processor.setCurrentProgram(last);
+    CHECK(processor.presets().currentName() == "My Program");
+    CHECK(closeEnough(rig.get(dsp::Param::Cutoff), 1111.0f));
+}
+
+TEST_CASE("a host rounding a value slightly does not make a sound look edited")
+{
+    Rig rig;
+    auto& manager = rig.processor.presets();
+    manager.loadFactory(2);
+    REQUIRE_FALSE(manager.isModified());
+
+    auto* cutoff = rig.processor.parameter(dsp::Param::Cutoff);
+    cutoff->setValueNotifyingHost(cutoff->getValue() + 2e-4f);
+    CHECK_FALSE(manager.isModified());
+
+    cutoff->setValueNotifyingHost(cutoff->getValue() + 0.05f);
+    CHECK(manager.isModified());
+}

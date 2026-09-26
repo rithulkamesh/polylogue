@@ -48,6 +48,9 @@ private:
     host::PolylogueProcessor& processor_;
     ScopeView scope_;
 
+    float wheelTravel_ = 0.0f;
+    std::int64_t lastWheelMs_ = 0;
+
     juce::String readoutLabel_;
     juce::String readoutValue_;
     juce::String readoutNote_;

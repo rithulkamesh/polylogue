@@ -51,6 +51,9 @@ enum class Param : std::uint8_t {
     LfoRate,
     LfoInt,
     LfoTarget,
+    ChorusMix,
+    ChorusRate,
+    ChorusDepth,
     Count
 };
 

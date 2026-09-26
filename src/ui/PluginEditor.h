@@ -27,7 +27,7 @@ public:
 
 private:
     static constexpr int kBaseWidth = 1200;
-    static constexpr int kBaseHeight = 620;
+    static constexpr int kBaseHeight = 636;
 
     struct SectionMark {
         juce::String title;

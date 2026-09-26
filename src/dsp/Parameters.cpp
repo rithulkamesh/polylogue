@@ -16,11 +16,12 @@ constexpr std::array<const char*, 2> kGlideModes = {"Auto", "On"};
 constexpr std::array<const char*, 3> kOsc1Waves = {"Saw", "Triangle", "Square"};
 constexpr std::array<const char*, 3> kOsc2Waves = {"Saw", "Triangle", "Noise"};
 constexpr std::array<const char*, 4> kOsc2Ranges = {"16'", "8'", "4'", "2'"};
-constexpr std::array<const char*, 3> kSyncRing = {"Off", "Sync", "Ring"};
+constexpr std::array<const char*, 4> kSyncRing = {"Off", "Sync", "Ring", "FM"};
 constexpr std::array<const char*, 3> kKeyTrack = {"0%", "50%", "100%"};
 constexpr std::array<const char*, 3> kAmpTypes = {"A/D", "A/G/D", "Gate"};
 constexpr std::array<const char*, 2> kEnvTypes = {"A/D", "A/G/D"};
-constexpr std::array<const char*, 3> kEnvTargets = {"Cutoff", "Pitch", "Pitch 2"};
+constexpr std::array<const char*, 5> kEnvTargets = {"Cutoff", "Pitch", "Pitch 2", "Level 1",
+                                                    "Level 2"};
 constexpr std::array<const char*, 3> kLfoWaves = {"Saw", "Triangle", "Square"};
 constexpr std::array<const char*, 3> kLfoModes = {"Fast", "Slow", "1-Shot"};
 constexpr std::array<const char*, 3> kLfoTargets = {"Pitch", "Shape", "Cutoff"};
@@ -104,6 +105,9 @@ constexpr std::array<ParamSpec, kParamCount> kSpecs = {{
     floatParam("lfo_rate", "LFO Rate", 0.0f, 1.0f, 0.4f),
     floatParam("lfo_int", "LFO Int", -1.0f, 1.0f, 0.0f),
     choiceParam("lfo_target", "LFO Target", kLfoTargets, 0),
+    floatParam("chorus_mix", "Chorus Mix", 0.0f, 1.0f, 0.0f),
+    floatParam("chorus_rate", "Chorus Rate", 0.05f, 5.0f, 0.6f, "Hz", Curve::Exponential),
+    floatParam("chorus_depth", "Chorus Depth", 0.0f, 1.0f, 0.5f),
 }};
 
 float snapToStep(float value, float step)
@@ -215,6 +219,10 @@ std::string formatValue(const ParamSpec& spec, float plain)
     if (unit == "Hz") {
         if (plain >= 1000.0f)
             std::snprintf(text, sizeof text, "%.2f kHz", static_cast<double>(plain) / 1000.0);
+        else if (plain < 10.0f)
+            std::snprintf(text, sizeof text, "%.2f Hz", static_cast<double>(plain));
+        else if (plain < 100.0f)
+            std::snprintf(text, sizeof text, "%.1f Hz", static_cast<double>(plain));
         else
             std::snprintf(text, sizeof text, "%.0f Hz", static_cast<double>(plain));
     } else if (unit == "s") {
@@ -330,6 +338,9 @@ SynthSettings toSettings(const ParamValues& v)
              static_cast<LfoMode>(choice(Param::LfoMode)), v[Param::LfoRate], v[Param::LfoInt],
              static_cast<LfoTarget>(choice(Param::LfoTarget))};
     s.drive = v[Param::Drive];
+    s.chorusMix = v[Param::ChorusMix];
+    s.chorusRate = v[Param::ChorusRate];
+    s.chorusDepth = v[Param::ChorusDepth];
     return s;
 }
 

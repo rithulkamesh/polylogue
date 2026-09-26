@@ -1,4 +1,5 @@
 add_library(polylogue_dsp STATIC
+    Chorus.cpp
     Drive.cpp
     Engine.cpp
     Envelope.cpp

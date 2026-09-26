@@ -21,8 +21,10 @@ public:
     void paint(juce::Graphics& g) override;
     void mouseDown(const juce::MouseEvent& event) override;
 
-    // How many positions the parameter has.
+    // How many positions the parameter has, and how many columns a vertical stack of them needs
+    // (long lists wrap into two so the chips stay legible).
     static int positions(const dsp::ParamSpec& spec);
+    static int columns(const dsp::ParamSpec& spec);
 
 private:
     juce::String chipText(int position) const;

@@ -18,6 +18,7 @@ namespace {
 struct Options {
     std::string preset = "Warm Pad";
     std::string out = "editor.png";
+    std::string then;   // a second preset to switch to once the editor is showing
     std::string touch;  // a panel knob to nudge so its readout shows, e.g. "CUTOFF"
     float scale = 2.0f;
     int note = 48;
@@ -39,6 +40,8 @@ bool parse(int argc, char** argv, Options& options)
                 options.preset = value;
             else if (flag == "--out")
                 options.out = value;
+            else if (flag == "--then")
+                options.then = value;
             else if (flag == "--touch")
                 options.touch = value;
             else if (flag == "--scale")
@@ -105,6 +108,13 @@ int main(int argc, char** argv)
         std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditor());
         pump(120);
 
+        if (!options.then.empty()) {
+            for (const auto& entry : processor.presets().entries()) {
+                if (entry.name == juce::String(options.then))
+                    processor.presets().load(entry);
+            }
+            pump(250);
+        }
         if (!options.touch.empty()) {
             for (std::size_t i = 0; i < dsp::kParamCount; ++i) {
                 const auto param = static_cast<dsp::Param>(i);

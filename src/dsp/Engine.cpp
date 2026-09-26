@@ -19,6 +19,8 @@ constexpr double kGainSmoothingSeconds = 0.01;
 void Engine::prepare(double sampleRate)
 {
     voices_.prepare(sampleRate);
+    chorus_.prepare(sampleRate);
+    chorus_.setParameters(settings_.chorusMix, settings_.chorusRate, settings_.chorusDepth);
     outputGain_.configure(kGainSmoothingSeconds, sampleRate);
     outputGain_.snap(settings_.outputGain);
     voices_.setVoiceLimit(settings_.polyphony);
@@ -31,6 +33,7 @@ void Engine::setSettings(const SynthSettings& settings)
         voices_.setVoiceLimit(settings.polyphony);
     voices_.setPlayStyle(settings.keyMode, settings.glideSeconds, settings.glideMode);
     settings_ = settings;
+    chorus_.setParameters(settings.chorusMix, settings.chorusRate, settings.chorusDepth);
     outputGain_.setTarget(settings.outputGain);
 }
 
@@ -88,10 +91,11 @@ void Engine::renderSubBlock(float* left, float* right, int count)
 
     for (int i = 0; i < count; ++i) {
         const float gain = outputGain_.next() * kVoiceHeadroom;
-        const float sample =
-            softLimit(mono[static_cast<std::size_t>(i)] * gain, kLimiterKnee, kLimiterCeiling);
-        left[i] = sample;
-        right[i] = sample;
+        float wetLeft;
+        float wetRight;
+        chorus_.process(mono[static_cast<std::size_t>(i)] * gain, wetLeft, wetRight);
+        left[i] = softLimit(wetLeft, kLimiterKnee, kLimiterCeiling);
+        right[i] = softLimit(wetRight, kLimiterKnee, kLimiterCeiling);
     }
 }
 

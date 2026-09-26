@@ -13,6 +13,8 @@ constexpr double kPitchSmoothingSeconds = 0.004;
 constexpr double kFadeSeconds = 0.002;
 constexpr float kMiddleC = 60.0f;
 constexpr float kVelocityCutoffOctaves = 4.0f;
+// Modulation index, in radians, at full oscillator 2 level in FM mode.
+constexpr float kMaxFmIndex = 10.0f;
 
 Waveform toWaveform(Osc1Wave wave)
 {
@@ -172,8 +174,9 @@ void Voice::applySettings(const SynthSettings& s)
 {
     settings_ = s;
 
-    osc1_.setWaveform(toWaveform(s.osc1Wave));
-    osc2_.setWaveform(toWaveform(s.osc2Wave));
+    const bool fm = s.syncRing == SyncRing::Fm;
+    osc1_.setWaveform(fm ? Waveform::Sine : toWaveform(s.osc1Wave));
+    osc2_.setWaveform(fm ? Waveform::Sine : toWaveform(s.osc2Wave));
     ampEnv_.setParameters(s.ampEnv, sampleRate_);
     modEnv_.setParameters(s.modEnv, sampleRate_);
     lfo_.setParameters(s.lfo);
@@ -220,17 +223,31 @@ float Voice::nextSample()
     osc1_.setShape(clampShape(osc1Shape_.next() + mod[index(ModDestination::Osc1Shape)]));
     osc2_.setShape(clampShape(osc2Shape_.next() + mod[index(ModDestination::Osc2Shape)]));
 
-    const bool sync = settings_.syncRing == SyncRing::Sync;
-    const double resetIn =
-        sync && osc1_.wrapsNextSample() ? osc1_.timeToWrap() : Oscillator::kNoReset;
+    const float level1 =
+        std::clamp(osc1Level_.next() + mod[index(ModDestination::Osc1Level)], 0.0f, 1.0f);
+    const float level2 =
+        std::clamp(osc2Level_.next() + mod[index(ModDestination::Osc2Level)], 0.0f, 1.0f);
 
-    const float osc1 = osc1_.process();
-    const float periodic = osc2_.process(resetIn);
-    float osc2 = settings_.osc2Wave == Osc2Wave::Noise ? noise_.next() : periodic;
-    if (settings_.syncRing == SyncRing::Ring)
-        osc2 *= osc1;
+    float mixed;
+    if (settings_.syncRing == SyncRing::Fm) {
+        // Two-operator FM. Oscillator 1 is the carrier and sounds at the played pitch; oscillator
+        // 2 is the modulator, is not heard, and its level is the modulation index. An envelope on
+        // that level turns a bright, inharmonic strike into a pure tone.
+        const double modulation =
+            static_cast<double>(osc2_.process()) * static_cast<double>(level2 * kMaxFmIndex);
+        mixed = level1 * osc1_.process(Oscillator::kNoReset, modulation);
+    } else {
+        const bool sync = settings_.syncRing == SyncRing::Sync;
+        const double resetIn =
+            sync && osc1_.wrapsNextSample() ? osc1_.timeToWrap() : Oscillator::kNoReset;
 
-    const float mixed = osc1Level_.next() * osc1 + osc2Level_.next() * osc2;
+        const float osc1 = osc1_.process();
+        const float periodic = osc2_.process(resetIn);
+        float osc2 = settings_.osc2Wave == Osc2Wave::Noise ? noise_.next() : periodic;
+        if (settings_.syncRing == SyncRing::Ring)
+            osc2 *= osc1;
+        mixed = level1 * osc1 + level2 * osc2;
+    }
 
     const float octaves =
         cutoffOctaves_.next() + noteCutoffOctaves_ + mod[index(ModDestination::Cutoff)];

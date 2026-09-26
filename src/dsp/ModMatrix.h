@@ -19,7 +19,9 @@ enum class ModDestination : std::size_t {
     Osc2Pitch,  // semitones
     Osc1Shape,  // shape units, 0..1 across the knob
     Osc2Shape,
-    Cutoff,  // octaves
+    Cutoff,     // octaves
+    Osc1Level,  // level units, 0..1 across the knob
+    Osc2Level,
     Count
 };
 

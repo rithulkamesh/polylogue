@@ -16,9 +16,13 @@ juce::String valueText(float value)
     return juce::String::toDecimalStringWithSignificantFigures(static_cast<double>(value), 9);
 }
 
-bool nearlyEqual(float a, float b)
+// Hosts may hand a value back rounded a little differently, so "edited" means moved by more than
+// a fraction of a percent of the control's travel.
+constexpr float kEditedThreshold = 2e-3f;
+
+bool sameSetting(const dsp::ParamSpec& spec, float a, float b)
 {
-    return std::abs(a - b) <= 1e-5f * std::max(1.0f, std::max(std::abs(a), std::abs(b)));
+    return std::abs(dsp::toNormalized(spec, a) - dsp::toNormalized(spec, b)) <= kEditedThreshold;
 }
 
 }  // namespace
@@ -38,6 +42,9 @@ juce::File PresetManager::defaultDataDirectory()
 
 void PresetManager::rescanUserPresets()
 {
+    juce::StringArray before;
+    for (const Entry& entry : entries_)
+        before.add(entry.name);
     entries_.clear();
 
     const auto factory = presets::factoryPresets();
@@ -55,6 +62,12 @@ void PresetManager::rescanUserPresets()
         entries_.push_back({xml->getStringAttribute("name", file.getFileNameWithoutExtension()),
                             "User", -1, file});
     }
+
+    juce::StringArray after;
+    for (const Entry& entry : entries_)
+        after.add(entry.name);
+    if (onChanged_ && before != after)
+        onChanged_();
 }
 
 void PresetManager::load(const Entry& entry)
@@ -151,19 +164,10 @@ bool PresetManager::isModified() const
         return true;
     const dsp::ParamValues now = currentValues();
     for (std::size_t i = 0; i < dsp::kParamCount; ++i) {
-        if (!nearlyEqual(now.values[i], loaded_.values[i]))
+        if (!sameSetting(dsp::paramSpecs()[i], now.values[i], loaded_.values[i]))
             return true;
     }
     return false;
-}
-
-int PresetManager::currentFactoryIndex() const
-{
-    for (const Entry& entry : entries_) {
-        if (entry.isFactory() && entry.name == currentName_)
-            return entry.factoryIndex;
-    }
-    return -1;
 }
 
 void PresetManager::applyValues(const dsp::ParamValues& values)
@@ -183,6 +187,8 @@ void PresetManager::markLoaded(const juce::String& name, bool modified)
     currentName_ = name;
     loaded_ = currentValues();
     forceModified_ = modified;
+    if (onChanged_)
+        onChanged_();
 }
 
 }  // namespace polylogue::host

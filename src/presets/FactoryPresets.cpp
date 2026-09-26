@@ -260,6 +260,41 @@ constexpr PresetValue kGhostGong[] = {
     {Param::LfoInt, 0.04f},
 };
 
+// The opening gong of a famous 1982 record was a stock digital-FM patch built from partials with
+// a non-integer FM ratio, heavy chorusing, and EQ to tame the raw brightness. This is an original
+// patch in that spirit, not a copy of it:
+//  - two-operator FM at a ratio of the square root of two, so the sidebands are inharmonic;
+//  - the mod envelope decays the FM index, so the bright clang collapses into a purer bell tone
+//    (what sounds like a pitch bend is the modulator fading);
+//  - a one-shot LFO adds a short burst of brightness on the strike and falls away;
+//  - a low-pass keeps the body dark, and a wide, slow chorus gives the phased shimmer.
+constexpr PresetValue kSynclavierGong[] = {
+    {Param::Level, -1.0f},
+    {Param::Osc1Level, 1.0f},
+    {Param::Osc2Pitch, 600.0f},
+    {Param::Osc2SyncRing, v(SyncRing::Fm)},
+    {Param::Osc2Level, 0.1f},
+    {Param::Drive, 0.12f},
+    {Param::Cutoff, 2600.0f},
+    {Param::Resonance, 0.05f},
+    {Param::KeyTrack, kTrack50},
+    {Param::AmpType, v(EnvelopeType::AD)},
+    {Param::AmpAttack, 0.002f},
+    {Param::AmpDecay, 8.0f},
+    {Param::VelAmp, 0.5f},
+    {Param::EnvDecay, 2.6f},
+    {Param::EnvInt, 0.8f},
+    {Param::EnvTarget, v(EnvelopeTarget::Level2)},
+    {Param::LfoWave, v(LfoWave::Saw)},
+    {Param::LfoMode, v(LfoMode::OneShot)},
+    {Param::LfoRate, 0.47f},
+    {Param::LfoInt, -0.5f},
+    {Param::LfoTarget, v(LfoTarget::Cutoff)},
+    {Param::ChorusMix, 0.7f},
+    {Param::ChorusRate, 0.35f},
+    {Param::ChorusDepth, 0.85f},
+};
+
 // ---- Basses ---------------------------------------------------------------------------------
 
 constexpr PresetValue kSubBass[] = {
@@ -511,6 +546,7 @@ constexpr std::array kPresets = {
     FactoryPreset{"Tam Tam", "Gong", kTamTam},
     FactoryPreset{"Bronze Gong", "Gong", kBronzeGong},
     FactoryPreset{"Ghost Gong", "Gong", kGhostGong},
+    FactoryPreset{"Synclavier Gong", "Gong", kSynclavierGong},
     FactoryPreset{"Sub Bass", "Bass", kSubBass},
     FactoryPreset{"Acid Bass", "Bass", kAcidBass},
     FactoryPreset{"Fat Mono", "Bass", kFatMono},

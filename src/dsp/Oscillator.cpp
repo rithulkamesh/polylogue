@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numbers>
 
 namespace polylogue::dsp {
 namespace {
@@ -42,9 +43,12 @@ void Oscillator::reset(double phase)
     pending_.fill(0.0);
 }
 
-float Oscillator::process(double resetIn)
+float Oscillator::process(double resetIn, double phaseModulation)
 {
-    const double current = value(phase_);
+    const double current =
+        phaseModulation == 0.0
+            ? value(phase_)
+            : value(fractionalPart(phase_ + phaseModulation / (2.0 * std::numbers::pi)));
 
     if (increment_ > 0.0) {
         if (resetIn > 0.0) {
@@ -90,6 +94,8 @@ double Oscillator::value(double t) const
         const double raw = t < width ? 1.0 : -1.0;
         return (raw - (2.0 * width - 1.0)) / (2.0 * (1.0 - width));
     }
+    case Waveform::Sine:
+        return std::sin(2.0 * std::numbers::pi * t);
     }
     return 0.0;
 }
@@ -106,6 +112,8 @@ double Oscillator::slope(double t) const
     }
     case Waveform::Square:
         return 0.0;
+    case Waveform::Sine:
+        return 2.0 * std::numbers::pi * std::cos(2.0 * std::numbers::pi * t);
     }
     return 0.0;
 }
@@ -152,6 +160,8 @@ void Oscillator::scan(double start, double span, double timeOffset)
             addStep(-jump, t);
         break;
     }
+    case Waveform::Sine:
+        break;  // continuous: nothing to band-limit
     }
 }
 

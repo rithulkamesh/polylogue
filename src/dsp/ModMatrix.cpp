@@ -49,6 +49,12 @@ void ModMatrix::configure(const SynthSettings& s)
         set(ModSource::ModEnv, ModDestination::Osc2Pitch,
             curved(s.modEnvAmount) * kEnvPitchSemitones);
         break;
+    case EnvelopeTarget::Level1:
+        set(ModSource::ModEnv, ModDestination::Osc1Level, s.modEnvAmount);
+        break;
+    case EnvelopeTarget::Level2:
+        set(ModSource::ModEnv, ModDestination::Osc2Level, s.modEnvAmount);
+        break;
     case EnvelopeTarget::Pitch2:
         set(ModSource::ModEnv, ModDestination::Osc2Pitch,
             curved(s.modEnvAmount) * kEnvPitchSemitones);

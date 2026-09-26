@@ -228,7 +228,7 @@ never disagree about a mapping. IDs are **append-only**: renaming or reusing one
 projects. A test pins the full ID list.
 
 Kinds: `Float` (curves `Linear`, `Exponential`, `Power`, `SymmetricPower`; optional step), `Int`,
-`Choice`, `Bool`. All 36 parameters are host-automatable. A per-block `ParamValues` (plain units)
+`Choice`, `Bool`. All 39 parameters are host-automatable. A per-block `ParamValues` (plain units)
 is converted once into `SynthSettings`, the typed struct the voices read, so DSP modules never
 index into the table. A test asserts that the table's defaults reproduce `SynthSettings{}`.
 
@@ -451,7 +451,7 @@ How the rules are met, and how they are checked:
 
 - **No allocation.** Voices, the event and control arrays, and every buffer are members sized at
   construction. `prepare` never allocates either. *Checked:* a counting `operator new` in the test
-  binary proves `Engine::process` (all 30 presets, with notes, bend, pedal, all-notes-off) and
+  binary proves `Engine::process` (all 31 presets, with notes, bend, pedal, all-notes-off) and
   `PolylogueProcessor::processBlock` (with CC traffic) allocate **zero** times. The guard is
   disabled under AddressSanitizer, so run it in the `dev` or `release` build; a meta-test proves
   the guard can see allocations.
@@ -479,7 +479,7 @@ How the rules are met, and how they are checked:
 
 ```
 polylogue_dsp       static lib, pure C++20, no JUCE            tests, tools, everything below
-polylogue_presets   static lib, pure C++20                     30 factory presets
+polylogue_presets   static lib, pure C++20                     31 factory presets
 polylogue_offline   static lib, pure C++20                     OfflineRenderer, WavWriter
 polylogue_host      INTERFACE sources, JUCE non-GUI            ParameterLayout, MidiTranslator, MidiMapper,
                                                                 PresetManager, ScopeBuffer, PolylogueProcessor
@@ -520,7 +520,7 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
   CC that another control owns moves it. The map lives in the session and is mirrored to
   `~/Library/Application Support/Polylogue/midi-map.xml` (one `<Bind id cc>` per parameter), which
   wins on load so a new instance keeps the user's controller setup.
-- **Presets:** 30 factory presets as `constexpr` tables of overrides on the defaults, in nine
+- **Presets:** 31 factory presets as `constexpr` tables of overrides on the defaults, in nine
   categories (Pad, Bell, Gong, Bass, Lead, Pluck, Ambient, Distorted, Keys), loudness-matched with
   `polylogue-render --list` to within 2.4 dB of each other (Wind, capped by the +6 dB level range,
   sits 3.5 dB below the loudest). A preset sets *every* parameter, so loading
@@ -567,7 +567,7 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
 | 3 | One mono voice | Done: oscillators, filter, envelopes, offline WAV |
 | 4 | Voice manager | Done: poly, stealing, sustain, retrigger, velocity, sample-accurate engine |
 | 5 | Modulation, LFO, drive, glide, mono | Done. Sequencer deferred (§5.6) |
-| 6 | Parameters, state, presets, MIDI | Done: table-driven, 30 presets, learnable CC map |
+| 6 | Parameters, state, presets, MIDI | Done: table-driven, 31 presets, learnable CC map |
 | 7 | UI | Done: LCD, full panel, visualizer, keyboard, preset menu, save, map |
 | 8 | Tests, profiling, cleanup | Done: see §13 |
 

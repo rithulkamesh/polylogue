@@ -23,7 +23,8 @@ enum class Osc2Range : std::uint8_t {
 enum class SyncRing : std::uint8_t {
     Off,
     Sync,
-    Ring
+    Ring,
+    Fm  // oscillator 2 phase-modulates oscillator 1; both are sines
 };
 enum class EnvelopeType : std::uint8_t {
     AD,
@@ -33,7 +34,9 @@ enum class EnvelopeType : std::uint8_t {
 enum class EnvelopeTarget : std::uint8_t {
     Cutoff,
     Pitch,
-    Pitch2
+    Pitch2,
+    Level1,
+    Level2
 };
 enum class LfoWave : std::uint8_t {
     Saw,
@@ -116,6 +119,10 @@ struct SynthSettings {
 
     LfoSettings lfo{};
     float drive = 0.0f;  // 0..1
+
+    float chorusMix = 0.0f;    // 0 bypasses the chorus
+    float chorusRate = 0.6f;   // Hz
+    float chorusDepth = 0.5f;  // 0..1
 
     friend bool operator==(const SynthSettings&, const SynthSettings&) = default;
 };

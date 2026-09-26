@@ -47,12 +47,18 @@ PolylogueProcessor::PolylogueProcessor(Options options)
     engine_.setSettings(dsp::toSettings(presets_.currentValues()));
     engine_.prepare(sampleRate_);
 
+    presets_.setChangeCallback([this] {
+        updateHostDisplay(
+            ChangeDetails().withProgramChanged(true).withNonParameterStateChanged(true));
+    });
+
     startTimerHz(30);
 }
 
 PolylogueProcessor::~PolylogueProcessor()
 {
     stopTimer();
+    presets_.setChangeCallback({});
     if (mapper_.version() != savedMapVersion_)
         writeMidiMap();
 }
@@ -330,27 +336,35 @@ juce::AudioProcessorEditor* PolylogueProcessor::createEditor()
     return editorFactory_ ? editorFactory_(*this) : nullptr;
 }
 
+// The host's program list is the browser's list: factory presets, then the user's own.
 int PolylogueProcessor::getNumPrograms()
 {
-    return static_cast<int>(presets::factoryPresets().size());
+    return static_cast<int>(presets_.entries().size());
 }
 
 int PolylogueProcessor::getCurrentProgram()
 {
-    return std::max(0, presets_.currentFactoryIndex());
+    const auto& entries = presets_.entries();
+    for (std::size_t i = 0; i < entries.size(); ++i) {
+        if (entries[i].name == presets_.currentName())
+            return static_cast<int>(i);
+    }
+    return 0;
 }
 
 void PolylogueProcessor::setCurrentProgram(int index)
 {
-    presets_.loadFactory(index);
+    const auto& entries = presets_.entries();
+    if (index >= 0 && static_cast<std::size_t>(index) < entries.size())
+        presets_.load(entries[static_cast<std::size_t>(index)]);
 }
 
 const juce::String PolylogueProcessor::getProgramName(int index)
 {
-    const auto factory = presets::factoryPresets();
-    if (index < 0 || static_cast<std::size_t>(index) >= factory.size())
+    const auto& entries = presets_.entries();
+    if (index < 0 || static_cast<std::size_t>(index) >= entries.size())
         return {};
-    return factory[static_cast<std::size_t>(index)].name;
+    return entries[static_cast<std::size_t>(index)].name;
 }
 
 void PolylogueProcessor::changeProgramName(int, const juce::String&) {}

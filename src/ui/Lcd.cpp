@@ -13,6 +13,8 @@ constexpr std::int64_t kReadoutMs = 1600;
 constexpr std::int64_t kMessageMs = 1800;
 constexpr float kCorner = 10.0f;
 constexpr float kLeftColumn = 0.4f;
+constexpr float kWheelStep = 0.5f;
+constexpr std::int64_t kWheelIdleMs = 300;
 
 std::int64_t now()
 {
@@ -93,18 +95,33 @@ void Lcd::mouseDown(const juce::MouseEvent& event)
             safe->showMessage(text);
     };
 
-    if (l.previous.contains(point))
+    if (l.previous.contains(point)) {
         preset_menu::step(processor_.presets(), -1);
-    else if (l.next.contains(point))
+        repaint();
+    } else if (l.next.contains(point)) {
         preset_menu::step(processor_.presets(), +1);
-    else if (l.nameRow.contains(point))
+        repaint();
+    } else if (l.nameRow.contains(point))
         preset_menu::showBrowser(*this, processor_.presets(), status);
 }
 
+// A trackpad sends dozens of tiny scroll events per swipe; stepping once per event would race
+// through the whole list. Accumulate the travel instead, and ignore the coasting after a swipe.
 void Lcd::mouseWheelMove(const juce::MouseEvent& event, const juce::MouseWheelDetails& wheel)
 {
-    if (layout().nameRow.contains(event.position) && std::abs(wheel.deltaY) > 0.0f)
-        preset_menu::step(processor_.presets(), wheel.deltaY > 0.0f ? -1 : +1);
+    if (!layout().nameRow.contains(event.position) || wheel.isInertial)
+        return;
+
+    if (now() - lastWheelMs_ > kWheelIdleMs)
+        wheelTravel_ = 0.0f;
+    lastWheelMs_ = now();
+
+    wheelTravel_ += wheel.isReversed ? -wheel.deltaY : wheel.deltaY;
+    if (std::abs(wheelTravel_) >= kWheelStep) {
+        preset_menu::step(processor_.presets(), wheelTravel_ > 0.0f ? -1 : +1);
+        wheelTravel_ = 0.0f;
+        repaint();
+    }
 }
 
 void Lcd::paint(juce::Graphics& g)

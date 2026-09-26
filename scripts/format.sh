@@ -7,4 +7,4 @@ mode=(-i)
 [[ "${1:-}" == "--check" ]] && mode=(--dry-run -Werror)
 
 find "$root/src" "$root/tests" "$root/tools" \( -name '*.h' -o -name '*.cpp' \) -print0 |
-    xargs -0 clang-format "${mode[@]}"
+    xargs -0 "${CLANG_FORMAT:-clang-format}" "${mode[@]}"

@@ -50,6 +50,12 @@ constexpr Cell kLfo[] = {
 
 constexpr Cell kPlay[] = {{Param::KeyMode, "MODE", C}, {Param::Polyphony, "VOICES", K}};
 
+constexpr Cell kChorus[] = {
+    {Param::ChorusMix, "MIX", K},
+    {Param::ChorusRate, "RATE", K},
+    {Param::ChorusDepth, "DEPTH", K},
+};
+
 constexpr Cell kPerformance[] = {
     {Param::Octave, "OCTAVE", R},        {Param::Tune, "TUNE", K},
     {Param::BendRange, "BEND", K},       {Param::GlideTime, "GLIDE", K},
@@ -57,10 +63,10 @@ constexpr Cell kPerformance[] = {
 };
 
 constexpr std::array kSections = {
-    Section{"MASTER", 0, kMaster}, Section{"VCO 1", 0, kVco1},    Section{"VCO 2", 0, kVco2},
-    Section{"MIXER", 0, kMixer},   Section{"FILTER", 0, kFilter}, Section{"AMP EG", 1, kAmp},
-    Section{"MOD EG", 1, kMod},    Section{"LFO", 1, kLfo},       Section{"PLAY", 1, kPlay},
-    Section{"", 2, kPerformance},
+    Section{"MASTER", 0, kMaster},       Section{"VCO 1", 0, kVco1},    Section{"VCO 2", 0, kVco2},
+    Section{"MIXER", 0, kMixer},         Section{"FILTER", 0, kFilter}, Section{"AMP EG", 1, kAmp},
+    Section{"MOD EG", 1, kMod},          Section{"LFO", 1, kLfo},       Section{"PLAY", 1, kPlay},
+    Section{"PERFORM", 2, kPerformance}, Section{"CHORUS", 2, kChorus},
 };
 
 }  // namespace
