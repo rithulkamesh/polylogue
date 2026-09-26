@@ -5,7 +5,7 @@ if(APPLE)
     set(CMAKE_OSX_DEPLOYMENT_TARGET 12.0 CACHE STRING "")
 endif()
 
-project(Polylogue VERSION 0.1.0 LANGUAGES C CXX)
+project(Polylogue VERSION 0.2.0 LANGUAGES C CXX)
 
 option(POLYLOGUE_BUILD_HOST "Build the JUCE host layer" ON)
 option(POLYLOGUE_BUILD_PLUGIN "Build VST3, AU and Standalone" ON)
