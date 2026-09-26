@@ -1,0 +1,39 @@
+# Tag a version (e.g. v0.1.0) to build the macOS release zip and attach it to a GitHub release.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: brew install ninja
+
+      - name: Configure (universal binary)
+        run: cmake --preset release "-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64"
+
+      - name: Build
+        run: cmake --build --preset release
+
+      - name: Tests
+        run: ctest --test-dir build/release --output-on-failure
+
+      - name: Package
+        run: |
+          cd build/release/src/plugin/Polylogue_artefacts/Release
+          lipo -archs VST3/Polylogue.vst3/Contents/MacOS/Polylogue
+          zip -ry "$GITHUB_WORKSPACE/Polylogue-macOS.zip" \
+            AU/Polylogue.component VST3/Polylogue.vst3 Standalone/Polylogue.app
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: Polylogue-macOS.zip
+          generate_release_notes: true

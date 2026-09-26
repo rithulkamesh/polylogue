@@ -1,0 +1,2 @@
+add_executable(polylogue-benchmark main.cpp)
+target_link_libraries(polylogue-benchmark PRIVATE polylogue_offline polylogue_presets polylogue_options)

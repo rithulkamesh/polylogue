@@ -1,0 +1,66 @@
+cmake_minimum_required(VERSION 3.25)
+
+if(APPLE)
+    set(CMAKE_OSX_ARCHITECTURES arm64 CACHE STRING "")
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 12.0 CACHE STRING "")
+endif()
+
+project(Polylogue VERSION 0.1.0 LANGUAGES C CXX)
+
+option(POLYLOGUE_BUILD_HOST "Build the JUCE host layer" ON)
+option(POLYLOGUE_BUILD_PLUGIN "Build VST3, AU and Standalone" ON)
+option(POLYLOGUE_BUILD_TESTS "Build tests" ON)
+option(POLYLOGUE_BUILD_TOOLS "Build the offline renderer" ON)
+option(POLYLOGUE_SANITIZE "Enable ASan and UBSan" OFF)
+option(POLYLOGUE_TSAN "Enable ThreadSanitizer (exclusive with POLYLOGUE_SANITIZE)" OFF)
+option(POLYLOGUE_COPY_PLUGINS "Install plugins to ~/Library after building" OFF)
+
+if(POLYLOGUE_BUILD_PLUGIN)
+    set(POLYLOGUE_BUILD_HOST ON)
+endif()
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+include(PolylogueOptions)
+include(Dependencies)
+
+add_subdirectory(src/dsp)
+add_subdirectory(src/offline)
+add_subdirectory(src/presets)
+
+if(POLYLOGUE_BUILD_HOST)
+    add_subdirectory(src/host)
+    add_subdirectory(src/ui)
+endif()
+
+if(POLYLOGUE_BUILD_PLUGIN)
+    add_subdirectory(src/plugin)
+endif()
+
+if(POLYLOGUE_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
+
+if(POLYLOGUE_BUILD_TOOLS)
+    add_subdirectory(tools/render)
+    add_subdirectory(tools/benchmark)
+    if(POLYLOGUE_BUILD_HOST)
+        add_subdirectory(tools/screenshot)
+    endif()
+endif()
+
+if(POLYLOGUE_BUILD_HOST)
+    set(_strict_consumers ${CMAKE_SOURCE_DIR}/tests)
+    if(POLYLOGUE_BUILD_PLUGIN)
+        list(APPEND _strict_consumers ${CMAKE_SOURCE_DIR}/src/plugin)
+    endif()
+    if(POLYLOGUE_BUILD_TOOLS)
+        list(APPEND _strict_consumers ${CMAKE_SOURCE_DIR}/tools/screenshot)
+    endif()
+    polylogue_strict_sources(polylogue_host ${_strict_consumers})
+    polylogue_strict_sources(polylogue_ui ${_strict_consumers})
+endif()

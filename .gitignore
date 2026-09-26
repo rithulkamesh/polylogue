@@ -1,0 +1,7 @@
+/build/
+/out/
+.cache/
+compile_commands.json
+.DS_Store
+*.wav
+!tests/data/*.wav

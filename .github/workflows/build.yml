@@ -1,0 +1,37 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          brew install ninja
+          python3 -m venv .venv && .venv/bin/pip install clang-format==23.1.1
+
+      - name: Format
+        run: PATH="$PWD/.venv/bin:$PATH" scripts/format.sh --check
+
+      - name: Tests under AddressSanitizer and UBSan
+        run: |
+          cmake --preset sanitize
+          cmake --build --preset sanitize
+          ctest --preset sanitize
+
+      - name: Tests under ThreadSanitizer
+        run: |
+          cmake --preset tsan
+          cmake --build --preset tsan --target polylogue_host_tests
+          ./build/tsan/tests/polylogue_host_tests
+
+      - name: Release build (VST3, AU, Standalone) and tests
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+          ctest --test-dir build/release --output-on-failure

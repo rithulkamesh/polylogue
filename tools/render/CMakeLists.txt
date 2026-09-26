@@ -1,0 +1,2 @@
+add_executable(polylogue-render main.cpp)
+target_link_libraries(polylogue-render PRIVATE polylogue_offline polylogue_presets polylogue_options)
