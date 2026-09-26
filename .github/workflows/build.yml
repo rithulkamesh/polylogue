@@ -4,72 +4,75 @@ on:
   push:
   pull_request:
 
+# A newer push makes the older run of the same branch pointless.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LINUX_DEPS: >-
+    ninja-build xvfb libasound2-dev libx11-dev libxext-dev libxrandr-dev libxinerama-dev
+    libxcursor-dev libfreetype-dev libfontconfig1-dev libgl1-mesa-dev
+
 jobs:
-  macos:
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Tools
-        run: |
-          brew install ninja
-          python3 -m venv .venv && .venv/bin/pip install clang-format==23.1.1
-
-      - name: Format
-        run: PATH="$PWD/.venv/bin:$PATH" scripts/format.sh --check
-
-      - name: Tests under AddressSanitizer and UBSan
-        run: |
-          cmake --preset sanitize
-          cmake --build --preset sanitize
-          ctest --preset sanitize
-
-      - name: Tests under ThreadSanitizer
-        run: |
-          cmake --preset tsan
-          cmake --build --preset tsan --target polylogue_host_tests
-          ./build/tsan/tests/polylogue_host_tests
-
-      - name: Release build (VST3, AU, Standalone) and tests
-        run: |
-          cmake --preset release
-          cmake --build --preset release
-          ctest --test-dir build/release --output-on-failure
-
-  linux:
+  # Every job below runs at the same time, so the run takes as long as the slowest one.
+  format:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - run: pip install clang-format==23.1.1
+      - run: scripts/format.sh --check
 
-      - name: Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build xvfb libasound2-dev libx11-dev libxext-dev \
-            libxrandr-dev libxinerama-dev libxcursor-dev libfreetype-dev libfontconfig1-dev \
-            libgl1-mesa-dev
+  # The sanitizers run on Linux: the runners are faster and they cover the same code as macOS.
+  sanitizers:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [sanitize, tsan]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
+      - run: cmake --preset ${{ matrix.preset }}
+      - run: cmake --build --preset ${{ matrix.preset }}
+      - run: xvfb-run -a ctest --preset ${{ matrix.preset }}
 
-      - name: Tests under AddressSanitizer and UBSan
-        run: |
-          cmake --preset sanitize
-          cmake --build --preset sanitize
-          xvfb-run -a ctest --preset sanitize
-
-      - name: Release build (VST3, Standalone) and tests
-        run: |
-          cmake --preset release
-          cmake --build --preset release
-          xvfb-run -a ctest --test-dir build/release --output-on-failure
-
-  windows:
-    runs-on: windows-latest
+  # Release builds of the real plugins, and the whole test suite, on each OS.
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+          - os: ubuntu-24.04
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
 
-      - name: Build (VST3, Standalone)
-        run: cmake --build build --config Release
+      - name: Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y $LINUX_DEPS
+
+      - name: Configure
+        if: runner.os != 'Windows'
+        run: cmake --preset release
+
+      - name: Configure
+        if: runner.os == 'Windows'
+        run: cmake -B build/release -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (VST3, Standalone, AU on macOS)
+        run: cmake --build build/release --config Release
 
       - name: Tests
-        run: ctest --test-dir build -C Release --output-on-failure
+        if: runner.os != 'Linux'
+        run: ctest --test-dir build/release -C Release --output-on-failure
+
+      - name: Tests
+        if: runner.os == 'Linux'
+        run: xvfb-run -a ctest --test-dir build/release --output-on-failure
