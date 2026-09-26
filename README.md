@@ -10,18 +10,12 @@ The panel follows the monologue: master and drive, two oscillators, mixer, filte
 LFO and performance settings, plus a display with a visualizer, a preset browser and an on-screen
 keyboard. Every control can be driven and learned from MIDI.
 
-```
- POLYLOGUE                                                    [SAVE] [MAP]     MIDI •
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│ Warm Pad •      ‹  ›                                                                │
-│ PAD  01/30                         oscilloscope  /  spectrum                        │
-│ CUTOFF  1.29 kHz                                                                    │
-└─────────────────────────────────────────────────────────────────────────────────────┘
- MASTER   VCO 1     VCO 2                    MIXER      FILTER
- AMP EG          MOD EG               LFO                        PLAY
- OCTAVE  TUNE  BEND  GLIDE  GLIDE MODE
- [ on-screen keyboard  C2 - C7 ]
-```
+![Polylogue](docs/panel.png)
+
+| Spectrum | MIDI learn |
+|:--------:|:----------:|
+| ![Spectrum view of a bell](docs/spectrum.png) | ![Learning a control from hardware](docs/midi-learn.png) |
+| Click the visualizer to switch from oscilloscope to spectrum. Here, a ring-modulated bell's inharmonic partials | Press MAP, click any control, move a knob on your controller |
 
 ## Install
 
