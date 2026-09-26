@@ -1,4 +1,5 @@
-# Tag a version (e.g. v0.1.0) to build the macOS release zip and attach it to a GitHub release.
+# Tag a version (e.g. v0.1.0) to build the release zips for macOS, Windows and Linux and attach
+# them to one GitHub release.
 name: release
 
 on:
@@ -36,4 +37,59 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: Polylogue-macOS.zip
+          generate_release_notes: true
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Package
+        run: |
+          $out = "build/src/plugin/Polylogue_artefacts/Release"
+          Compress-Archive -Path "$out/VST3/Polylogue.vst3", "$out/Standalone/Polylogue.exe" -DestinationPath Polylogue-Windows.zip
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: Polylogue-Windows.zip
+          generate_release_notes: true
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb libasound2-dev libx11-dev libxext-dev \
+            libxrandr-dev libxinerama-dev libxcursor-dev libfreetype-dev libfontconfig1-dev \
+            libgl1-mesa-dev
+
+      - name: Configure
+        run: cmake --preset release
+
+      - name: Build
+        run: cmake --build --preset release
+
+      - name: Tests
+        run: xvfb-run -a ctest --test-dir build/release --output-on-failure
+
+      - name: Package
+        run: |
+          cd build/release/src/plugin/Polylogue_artefacts/Release
+          zip -ry "$GITHUB_WORKSPACE/Polylogue-Linux.zip" VST3/Polylogue.vst3 Standalone/Polylogue
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: Polylogue-Linux.zip
           generate_release_notes: true

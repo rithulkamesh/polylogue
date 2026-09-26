@@ -35,3 +35,41 @@ jobs:
           cmake --preset release
           cmake --build --preset release
           ctest --test-dir build/release --output-on-failure
+
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb libasound2-dev libx11-dev libxext-dev \
+            libxrandr-dev libxinerama-dev libxcursor-dev libfreetype-dev libfontconfig1-dev \
+            libgl1-mesa-dev
+
+      - name: Tests under AddressSanitizer and UBSan
+        run: |
+          cmake --preset sanitize
+          cmake --build --preset sanitize
+          xvfb-run -a ctest --preset sanitize
+
+      - name: Release build (VST3, Standalone) and tests
+        run: |
+          cmake --preset release
+          cmake --build --preset release
+          xvfb-run -a ctest --test-dir build/release --output-on-failure
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (VST3, Standalone)
+        run: cmake --build build --config Release
+
+      - name: Tests
+        run: ctest --test-dir build -C Release --output-on-failure

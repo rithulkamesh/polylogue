@@ -3,21 +3,25 @@
 # JUCE compiles its module sources into whichever target links them, so -Werror must never be
 # attached to a target that links JUCE. Pure C++ targets link `polylogue_options`; JUCE-facing
 # sources get the same flags through polylogue_strict_sources() instead.
-set(POLYLOGUE_WARNING_FLAGS
-    -Wall
-    -Wextra
-    -Wpedantic
-    -Wconversion
-    -Wsign-conversion
-    -Wshadow
-    -Wnon-virtual-dtor
-    -Wold-style-cast
-    -Woverloaded-virtual
-    -Wnull-dereference
-    -Wdouble-promotion
-    -Wimplicit-fallthrough
-    -Werror
-)
+if(MSVC)
+    set(POLYLOGUE_WARNING_FLAGS /W4 /WX /permissive- /utf-8)
+else()
+    set(POLYLOGUE_WARNING_FLAGS
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wconversion
+        -Wsign-conversion
+        -Wshadow
+        -Wnon-virtual-dtor
+        -Wold-style-cast
+        -Woverloaded-virtual
+        -Wnull-dereference
+        -Wdouble-promotion
+        -Wimplicit-fallthrough
+        -Werror
+    )
+endif()
 
 add_library(polylogue_options INTERFACE)
 target_compile_features(polylogue_options INTERFACE cxx_std_20)
@@ -27,7 +31,9 @@ if(POLYLOGUE_SANITIZE AND POLYLOGUE_TSAN)
     message(FATAL_ERROR "POLYLOGUE_SANITIZE and POLYLOGUE_TSAN cannot be combined")
 endif()
 
-if(POLYLOGUE_SANITIZE)
+if(MSVC AND (POLYLOGUE_SANITIZE OR POLYLOGUE_TSAN))
+    message(FATAL_ERROR "The sanitizer options need GCC or Clang")
+elseif(POLYLOGUE_SANITIZE)
     set(_sanitizers -fsanitize=address,undefined -fno-omit-frame-pointer
                     -fno-sanitize-recover=undefined)
 elseif(POLYLOGUE_TSAN)
