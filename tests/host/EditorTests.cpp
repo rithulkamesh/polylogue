@@ -1,3 +1,4 @@
+#include "dsp/Axes.h"
 #include "host/HostTestSupport.h"
 #include "presets/FactoryPresets.h"
 #include "ui/Knob.h"
@@ -210,16 +211,47 @@ TEST_CASE("the text box opens over the knob showing the current value")
     CHECK(image.isValid());
 }
 
-TEST_CASE("every parameter has exactly one control on the panel")
+TEST_CASE("every sound parameter has exactly one control on the panel")
 {
     std::vector<int> seen(dsp::kParamCount, 0);
     for (const ui::Section& section : ui::panelSections()) {
         for (const ui::Cell& cell : section.cells)
             ++seen[dsp::index(cell.param)];
     }
+    for (const ui::PlayKnob& knob : ui::playKnobs())
+        ++seen[dsp::index(knob.param)];
     for (std::size_t i = 0; i < seen.size(); ++i) {
         INFO(dsp::paramSpecs()[i].id);
-        CHECK(seen[i] == 1);
+        // Home positions are saved with the sound but have no control of their own.
+        CHECK(seen[i] == (dsp::paramSpecs()[i].automatable ? 1 : 0));
+    }
+}
+
+TEST_CASE("the editor opens on PLAY and EDIT shows the sound as it plays")
+{
+    EditorRig rig;
+    auto base = rig.editor();
+    auto* editor = dynamic_cast<ui::PluginEditor*>(base.get());
+    REQUIRE(editor != nullptr);
+    CHECK(editor->screen() == ui::PluginEditor::Screen::Play);
+
+    // Turn BRIGHT down on the play screen, then switch to EDIT.
+    auto* bright = rig.processor.parameter(dsp::Param::AxisBright);
+    bright->setValueNotifyingHost(0.2f);
+    const dsp::ParamValues playing = dsp::effectiveValues(rig.processor.presets().currentValues());
+    REQUIRE(playing[dsp::Param::Cutoff] < 8000.0f);
+
+    editor->showScreen(ui::PluginEditor::Screen::Edit, false);
+    const dsp::ParamValues stored = rig.processor.presets().currentValues();
+    CHECK(stored[dsp::Param::Cutoff] == playing[dsp::Param::Cutoff]);
+    CHECK(dsp::homeOf(stored).values == dsp::knobsOf(stored).values);
+
+    // Both screens render.
+    for (auto screen : {ui::PluginEditor::Screen::Play, ui::PluginEditor::Screen::Edit}) {
+        editor->showScreen(screen, false);
+        const juce::Image image = editor->createComponentSnapshot(editor->getLocalBounds());
+        CHECK(image.isValid());
+        CHECK(inkCoverage(image) > 0.01);
     }
 }
 

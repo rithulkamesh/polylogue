@@ -16,6 +16,8 @@ class ScopeView final : public juce::Component, private juce::Timer {
 public:
     explicit ScopeView(host::PolylogueProcessor& processor);
 
+    // The large spectrum on the play screen: always a spectrum, filled, and not clickable.
+    void setStage(bool stage);
     void toggleMode();
     void showSpectrum(bool spectrum);
     void paint(juce::Graphics& g) override;
@@ -39,6 +41,7 @@ private:
     host::PolylogueProcessor& processor_;
     Mode mode_ = Mode::Wave;
     std::size_t lastCount_ = 0;
+    bool stage_ = false;
 
     std::array<float, kWindow> samples_{};
     std::array<float, kShown> wave_{};

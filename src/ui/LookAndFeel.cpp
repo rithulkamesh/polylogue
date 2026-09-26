@@ -58,7 +58,10 @@ void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, i
     g.strokePath(track, juce::PathStrokeType(1.0f, juce::PathStrokeType::curved,
                                              juce::PathStrokeType::rounded));
 
-    if (std::abs(angle - origin) > 0.01f) {
+    // A knob that shows a change from home draws that change itself instead of a fill from the
+    // start.
+    const bool showsChangeFromHome = slider.getProperties().getWithDefault("changeFromHome", false);
+    if (!showsChangeFromHome && std::abs(angle - origin) > 0.01f) {
         juce::Path active;
         active.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, juce::jmin(origin, angle),
                              juce::jmax(origin, angle), true);

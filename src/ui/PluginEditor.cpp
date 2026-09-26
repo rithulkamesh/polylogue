@@ -34,6 +34,13 @@ constexpr float kKnobWidth = 70.0f;
 constexpr float kColumnChipWidth = 58.0f;
 constexpr float kRowChipWidth = 40.0f;
 constexpr float kKeyboardHeight = 80.0f;
+constexpr float kPlayKnobSize = 120.0f;
+constexpr float kPlayHintHeight = 22.0f;
+constexpr float kStageHeight = 92.0f;
+constexpr float kStageGap = 16.0f;
+constexpr float kStageInset = 16.0f;
+constexpr float kFadeSeconds = 0.22f;
+constexpr int kFadeHz = 60;
 
 float cellWidth(const Cell& cell)
 {
@@ -59,7 +66,11 @@ juce::String choiceText(const host::PolylogueProcessor& processor, dsp::Param pa
 }  // namespace
 
 PluginEditor::PluginEditor(host::PolylogueProcessor& owner)
-    : juce::AudioProcessorEditor(owner), processor_(owner), lcd_(owner), keyboard_(owner)
+    : juce::AudioProcessorEditor(owner),
+      processor_(owner),
+      lcd_(owner),
+      keyboard_(owner),
+      stage_(owner)
 {
     setLookAndFeel(&lookAndFeel_.get());
     setOpaque(true);
@@ -80,8 +91,24 @@ PluginEditor::PluginEditor(host::PolylogueProcessor& owner)
         }
     }
 
-    for (auto* button : {&saveButton_, &mapButton_})
+    stage_.setStage(true);
+    addAndMakeVisible(stage_);
+    for (const PlayKnob& knob : playKnobs()) {
+        playKnobs_.push_back(std::make_unique<Knob>(owner, knob.param, knob.label));
+        playKnobs_.back()->setShowValue(true);
+        addAndMakeVisible(*playKnobs_.back());
+    }
+    playHints_.resize(playKnobs_.size());
+
+    for (auto* button : {&saveButton_, &mapButton_, &playButton_, &editButton_})
         addAndMakeVisible(*button);
+    for (auto* button : {&playButton_, &editButton_}) {
+        button->setRadioGroupId(1);
+        button->setClickingTogglesState(true);
+    }
+    fader_.tick = [this] { stepTransition(); };
+    playButton_.onClick = [this] { showScreen(Screen::Play); };
+    editButton_.onClick = [this] { showScreen(Screen::Edit); };
     saveButton_.onClick = [this] {
         dialog_ =
             preset_menu::promptSave(*this, processor_.presets(),
@@ -96,12 +123,14 @@ PluginEditor::PluginEditor(host::PolylogueProcessor& owner)
     setSize(kBaseWidth, kBaseHeight);
 
     lastMapVersion_ = processor_.midiMapper().version();
+    showScreen(Screen::Play, false);
     startTimerHz(kPollHz);
 }
 
 PluginEditor::~PluginEditor()
 {
     stopTimer();
+    fader_.stopTimer();
     juce::PopupMenu::dismissAllActiveMenus();
     if (dialog_ != nullptr)
         dialog_->exitModalState(0);
@@ -131,6 +160,7 @@ void PluginEditor::resized()
     };
 
     marks_.clear();
+    layoutPlayScreen(scale);
     std::size_t next = 0;
     for (int row = 0; row <= 2; ++row) {
         const float cellsHeight = row == 2 ? kStripHeight : kPanelRowHeight;
@@ -148,7 +178,7 @@ void PluginEditor::resized()
                 continue;
 
             const float width = sectionWidth(section);
-            marks_.push_back({section.title, {x, y, width, kTitleHeight}});
+            marks_.push_back({section.title, {x, y, width, kTitleHeight}, false});
 
             float cellX = x;
             for (const Cell& cell : section.cells) {
@@ -166,6 +196,110 @@ void PluginEditor::resized()
     const float right = static_cast<float>(kBaseWidth) - kMargin - 110.0f;
     mapButton_.setBounds(scaled({right - 64.0f, 11.0f, 64.0f, 24.0f}));
     saveButton_.setBounds(scaled({right - 64.0f - 8.0f - 64.0f, 11.0f, 64.0f, 24.0f}));
+
+    const float centre = static_cast<float>(kBaseWidth) / 2.0f;
+    playButton_.setBounds(scaled({centre - 68.0f, 11.0f, 64.0f, 24.0f}));
+    editButton_.setBounds(scaled({centre + 4.0f, 11.0f, 64.0f, 24.0f}));
+}
+
+// The play screen: a live spectrum, then the eight knobs in one row, centred in the space the edit
+// panel uses.
+void PluginEditor::layoutPlayScreen(float scale)
+{
+    auto scaled = [scale](juce::Rectangle<float> r) {
+        return juce::Rectangle<float>(r.getX() * scale, r.getY() * scale, r.getWidth() * scale,
+                                      r.getHeight() * scale)
+            .toNearestInt();
+    };
+    const float contentWidth = static_cast<float>(kBaseWidth) - 2.0f * kMargin;
+    const float top = kHeaderHeight + 10.0f + kLcdHeight + 12.0f;
+    const float panelHeight =
+        2.0f * (kTitleHeight + kPanelRowHeight + kRowGap) + (kTitleHeight + kStripHeight + kRowGap);
+    const float knobCaption = 34.0f;
+    const float knobsHeight = kTitleHeight + 10.0f + kPlayKnobSize + knobCaption + kPlayHintHeight;
+    const float blockHeight = kStageHeight + kStageGap + knobsHeight;
+    const float y = top + (panelHeight - blockHeight) / 2.0f;
+
+    stagePanel_ = {kMargin, y, contentWidth, kStageHeight};
+    stage_.setBounds(scaled(stagePanel_.reduced(kStageInset, kStageInset * 0.6f)));
+
+    const float knobsTop = y + kStageHeight + kStageGap;
+    marks_.push_back({"SOUND", {kMargin, knobsTop, contentWidth, kTitleHeight}, true});
+    const float cell = contentWidth / static_cast<float>(playKnobs_.size());
+    for (std::size_t i = 0; i < playKnobs_.size(); ++i) {
+        const float x = kMargin + cell * static_cast<float>(i);
+        const float knobY = knobsTop + kTitleHeight + 10.0f;
+        const juce::Rectangle<float> knob{x + (cell - kPlayKnobSize) / 2.0f, knobY, kPlayKnobSize,
+                                          kPlayKnobSize + knobCaption};
+        playKnobs_[i]->setBounds(scaled(knob));
+        playHints_[i] = {x, knob.getBottom() + 2.0f, cell, kPlayHintHeight};
+    }
+}
+
+template<typename Visitor>
+void PluginEditor::forEachControl(Visitor&& visitor)
+{
+    for (auto& control : controls_)
+        visitor(*control);
+    for (auto& knob : playKnobs_)
+        visitor(*knob);
+}
+
+void PluginEditor::showScreen(Screen screen, bool animate)
+{
+    // Leaving PLAY commits what the knobs have done, so the panel shows the sound as it plays.
+    if (screen_ == Screen::Play && screen == Screen::Edit)
+        processor_.bakeAxes();
+    screen_ = screen;
+
+    const bool play = screen == Screen::Play;
+    playButton_.setToggleState(play, juce::dontSendNotification);
+    editButton_.setToggleState(!play, juce::dontSendNotification);
+    resized();
+
+    if (animate) {
+        fader_.startTimerHz(kFadeHz);
+    } else {
+        fader_.stopTimer();
+        progress_ = play ? 1.0f : 0.0f;
+        applyScreenMix();
+    }
+}
+
+// One step of the crossfade between the screens.
+void PluginEditor::stepTransition()
+{
+    const float target = screen_ == Screen::Play ? 1.0f : 0.0f;
+    const float step = 1.0f / (kFadeSeconds * static_cast<float>(kFadeHz));
+    progress_ += juce::jlimit(-step, step, target - progress_);
+    if (progress_ == target)
+        fader_.stopTimer();
+    applyScreenMix();
+}
+
+void PluginEditor::applyScreenMix()
+{
+    mix_ = progress_ * progress_ * (3.0f - 2.0f * progress_);
+    const float edit = 1.0f - mix_;
+    for (auto& control : controls_) {
+        control->setAlpha(edit);
+        control->setVisible(edit > 0.001f);
+    }
+    for (auto& knob : playKnobs_) {
+        knob->setAlpha(mix_);
+        knob->setVisible(mix_ > 0.001f);
+    }
+    stage_.setAlpha(mix_);
+    stage_.setVisible(mix_ > 0.001f);
+    repaint();
+}
+
+void PluginEditor::updateHomeMarkers()
+{
+    for (std::size_t i = 0; i < playKnobs_.size(); ++i) {
+        const auto home = static_cast<dsp::Param>(dsp::index(dsp::Param::HomeWave) + i);
+        playKnobs_[i]->setHomeMarker(processor_.parameter(home)->getValue());
+    }
 }
 
 void PluginEditor::paint(juce::Graphics& g)
@@ -208,16 +342,31 @@ void PluginEditor::paint(juce::Graphics& g)
     g.drawHorizontalLine(juce::roundToInt(kHeaderHeight * scale), 0.0f,
                          static_cast<float>(getWidth()));
 
+    if (mix_ > 0.001f) {
+        const auto panel = (stagePanel_ * scale).reduced(0.5f);
+        g.setColour(juce::Colour(0xff0d0e10).withMultipliedAlpha(mix_));
+        g.fillRoundedRectangle(panel, 10.0f * scale);
+        g.setColour(kBorder.withMultipliedAlpha(mix_));
+        g.drawRoundedRectangle(panel, 10.0f * scale, 1.0f);
+        g.setFont(mono(9.5f * scale));
+        g.setColour(kDim.withMultipliedAlpha(mix_));
+        for (std::size_t i = 0; i < playKnobs_.size(); ++i) {
+            g.drawText(playKnobs()[i].hint, (playHints_[i] * scale).toNearestInt(),
+                       juce::Justification::centredTop);
+        }
+    }
+
     // Section titles, each with a hairline running to the end of its group.
     g.setFont(mono(10.0f * scale));
     for (const SectionMark& mark : marks_) {
-        if (mark.title.isEmpty())
+        const float visibility = mark.onPlayScreen ? mix_ : 1.0f - mix_;
+        if (mark.title.isEmpty() || visibility < 0.001f)
             continue;
         const auto area = mark.area * scale;
         const float titleWidth = textWidth(mono(10.0f * scale), mark.title);
-        g.setColour(kDim);
+        g.setColour(kDim.withMultipliedAlpha(visibility));
         g.drawText(mark.title, area.withWidth(titleWidth + 4.0f), juce::Justification::centredLeft);
-        g.setColour(kBorder);
+        g.setColour(kBorder.withMultipliedAlpha(visibility));
         g.drawHorizontalLine(juce::roundToInt(area.getCentreY()),
                              area.getX() + titleWidth + 12.0f * scale, area.getRight());
     }
@@ -227,6 +376,7 @@ void PluginEditor::timerCallback()
 {
     pollParameters();
     pollMidi();
+    updateHomeMarkers();
     keyboard_.followMidi();
 }
 
@@ -243,8 +393,11 @@ void PluginEditor::describe(dsp::Param param)
         note = arrow + choiceText(processor_, dsp::Param::LfoTarget);
 
     const juce::String label = controlLabel(param);
+    const bool playKnob = param >= dsp::Param::AxisWave && param <= dsp::Param::AxisMotion;
     lcd_.showReadout(label.isEmpty() ? juce::String(spec.name).toUpperCase() : label,
-                     dsp::formatValue(spec, plain), note);
+                     playKnob ? juce::String(juce::roundToInt(plain * 100.0f)).toStdString()
+                              : dsp::formatValue(spec, plain),
+                     note);
 }
 
 // Anything that moves a control (mouse, automation, a controller) shows up on the display.
@@ -283,8 +436,7 @@ void PluginEditor::pollMidi()
 
     if (mapper.version() != lastMapVersion_) {
         lastMapVersion_ = mapper.version();
-        for (auto& control : controls_)
-            control->refreshMapping();
+        forEachControl([](MappableControl& control) { control.refreshMapping(); });
         // A completed learn ends map mode.
         if (mapMode_ && mapper.learningSlot() == host::MidiMapper::kUnbound) {
             setMapMode(false);
@@ -297,8 +449,7 @@ void PluginEditor::setMapMode(bool on)
 {
     mapMode_ = on;
     mapButton_.setToggleState(on, juce::dontSendNotification);
-    for (auto& control : controls_)
-        control->setMapMode(on);
+    forEachControl([on](MappableControl& control) { control.setMapMode(on); });
     if (!on)
         processor_.midiMapper().stopLearning();
     else

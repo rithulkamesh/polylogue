@@ -15,7 +15,13 @@ public:
     ~Knob() override;
 
     void paint(juce::Graphics& g) override;
+    void paintOverChildren(juce::Graphics& g) override;
     void resized() override;
+
+    // Marks a position on the ring, such as where a sound was made. Negative hides it.
+    void setHomeMarker(float normalized);
+    // Prints the value, 0 to 100, in the middle of the knob.
+    void setShowValue(bool show);
 
     // Clicking a knob without dragging opens a text box over it for typing a value, such as
     // "1.5k", "250 ms" or "-6". Enter applies it and Escape cancels.
@@ -32,6 +38,8 @@ private:
     std::unique_ptr<Dial> dial_;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment_;
     juce::TextEditor entry_;
+    float homeMarker_ = -1.0f;
+    bool showValue_ = false;
 };
 
 }  // namespace polylogue::ui

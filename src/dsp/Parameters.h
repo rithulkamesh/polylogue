@@ -54,6 +54,24 @@ enum class Param : std::uint8_t {
     ChorusMix,
     ChorusRate,
     ChorusDepth,
+    // The eight play knobs, and where each sat when the sound was made (its home). The sound is
+    // the stored values above moved by however far a knob is from home; see Axes.h.
+    AxisWave,
+    AxisMetal,
+    AxisGrit,
+    AxisBright,
+    AxisAttack,
+    AxisSustain,
+    AxisEvolve,
+    AxisMotion,
+    HomeWave,
+    HomeMetal,
+    HomeGrit,
+    HomeBright,
+    HomeAttack,
+    HomeSustain,
+    HomeEvolve,
+    HomeMotion,
     Count
 };
 
@@ -91,6 +109,7 @@ struct ParamSpec {
     float step = 0.0f;  // Float: snap size, 0 for continuous
     const char* unit = "";
     std::span<const char* const> choices = {};  // Choice: one label per value
+    bool automatable = true;                    // false: saved with the sound, hidden from hosts
 };
 
 std::span<const ParamSpec> paramSpecs();

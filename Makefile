@@ -13,7 +13,7 @@ VST3_DIR = $(HOME)/Library/Audio/Plug-Ins/VST3
 APP_DIR  = $(HOME)/Applications
 
 .DEFAULT_GOAL := help
-.PHONY: help build test debug run bench presets sanitize tsan ci format format-check screenshots \
+.PHONY: help build test debug run bench presets fit sanitize tsan ci format format-check screenshots \
         universal dist install uninstall clean distclean
 
 help: ## Show this list
@@ -56,10 +56,14 @@ bench: build ## CPU use per scenario
 presets: build ## List every factory preset with its peak, loudness and tail length
 	./build/release/tools/render/polylogue-render --list --notes 48 --hold 2 --seconds 12
 
+fit: build ## Fit the eight play knobs to every factory preset and rewrite the home positions
+	./build/release/tools/fit/polylogue-fit --budget 1200 --emit src/presets/FactoryAxes.inc
+
 screenshots: build ## Regenerate the README screenshots in docs/
-	./build/release/tools/screenshot/polylogue-screenshot --preset "Warm Pad" --touch CUTOFF --scale 1.5 --out docs/panel.png
-	./build/release/tools/screenshot/polylogue-screenshot --preset "Glass Bell" --spectrum --touch INT --note 60 --scale 1.5 --out docs/spectrum.png
-	./build/release/tools/screenshot/polylogue-screenshot --preset "Growl" --map --scale 1.5 --out docs/midi-learn.png
+	./build/release/tools/screenshot/polylogue-screenshot --preset "Glass Bell" --touch METAL --note 64 --scale 1.5 --out docs/play.png
+	./build/release/tools/screenshot/polylogue-screenshot --preset "Warm Pad" --touch CUTOFF --screen edit --scale 1.5 --out docs/panel.png
+	./build/release/tools/screenshot/polylogue-screenshot --preset "Glass Bell" --spectrum --touch INT --note 60 --screen edit --scale 1.5 --out docs/spectrum.png
+	./build/release/tools/screenshot/polylogue-screenshot --preset "Growl" --map --screen edit --scale 1.5 --out docs/midi-learn.png
 
 # ---- Code quality ---------------------------------------------------------------------------
 

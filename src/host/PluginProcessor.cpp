@@ -1,5 +1,6 @@
 #include "host/PluginProcessor.h"
 
+#include "dsp/Axes.h"
 #include "host/ParameterLayout.h"
 #include "presets/FactoryPresets.h"
 
@@ -48,7 +49,7 @@ PolylogueProcessor::PolylogueProcessor(Options options)
         readMidiMap(*xml);
     savedMapVersion_ = mapper_.version();
 
-    engine_.setSettings(dsp::toSettings(presets_.currentValues()));
+    engine_.setSettings(dsp::toSettings(dsp::effectiveValues(presets_.currentValues())));
     engine_.prepare(sampleRate_);
 
     presets_.setChangeCallback([this] {
@@ -137,7 +138,7 @@ void PolylogueProcessor::processBlock(juce::AudioBuffer<float>& audio, juce::Mid
         events_[i].offset = std::clamp(events_[i].offset, 0, count - 1);
 
     applyControlChanges({controls_.data(), translated.controlCount});
-    engine_.setSettings(dsp::toSettings(readParameters(count)));
+    engine_.setSettings(dsp::toSettings(dsp::effectiveValues(readParameters(count))));
 
     float* left = audio.getWritePointer(0);
     float* right = channels > 1 ? audio.getWritePointer(1) : left;
@@ -261,6 +262,14 @@ dsp::ParamValues PolylogueProcessor::readParameters(int blockSamples)
     return values;
 }
 
+void PolylogueProcessor::bakeAxes()
+{
+    const dsp::ParamValues before = presets_.currentValues();
+    const dsp::ParamValues after = dsp::bake(before);
+    if (before.values != after.values)
+        presets_.restore(presets_.currentName(), after, true);
+}
+
 void PolylogueProcessor::processPendingControlChanges()
 {
     std::array<float, dsp::kParamCount> latest{};
@@ -322,10 +331,21 @@ bool PolylogueProcessor::readMidiMap(const juce::XmlElement& xml)
 
     for (int slot = 0; slot < MidiMapper::kSlotCount; ++slot)
         mapper_.bind(slot, MidiMapper::kUnbound);
+    std::array<bool, dsp::kParamCount> listed{};
     for (const auto* bind : xml.getChildWithTagNameIterator("Bind")) {
-        if (const auto param = dsp::paramFromId(bind->getStringAttribute("id").toStdString()))
+        if (const auto param = dsp::paramFromId(bind->getStringAttribute("id").toStdString())) {
+            listed[dsp::index(*param)] = true;
             mapper_.bind(MidiMapper::slotOf(*param),
                          bind->getIntAttribute("cc", MidiMapper::kUnbound));
+        }
+    }
+    // A file written before a parameter existed does not mention it: give it its default
+    // controller, unless the file has already used that controller for something else.
+    for (std::size_t i = 0; i < listed.size(); ++i) {
+        const int controller = MidiMapper::defaultController(static_cast<dsp::Param>(i));
+        if (!listed[i] && controller != MidiMapper::kUnbound &&
+            mapper_.slotFor(controller) == MidiMapper::kUnbound)
+            mapper_.bind(static_cast<int>(i), controller);
     }
     return true;
 }

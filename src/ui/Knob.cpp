@@ -2,6 +2,7 @@
 
 #include "ui/Theme.h"
 
+#include <cmath>
 #include <memory>
 
 namespace polylogue::ui {
@@ -14,7 +15,7 @@ constexpr int kDragPixelsForFullTravel = 260;
 }  // namespace
 
 // The slider itself, so right-clicks can open the mapping menu and map mode can intercept clicks.
-class Knob::Dial final : public juce::Slider {
+class Knob::Dial final : public juce::Slider, private juce::Timer {
 public:
     explicit Dial(Knob& owner)
         : juce::Slider(juce::Slider::RotaryVerticalDrag, NoTextBox), owner_(owner)
@@ -53,8 +54,55 @@ public:
     // A double-click would fight the click that opens the text box; the context menu resets.
     void mouseDoubleClick(const juce::MouseEvent&) override {}
 
+    // Where the ring is drawn. It follows the value at once while a hand is on the knob and glides
+    // there when a preset, a controller or the host moves it.
+    float shownPosition() const { return shown_; }
+
+    void valueChanged() override
+    {
+        if (!started_ || isMouseButtonDown()) {
+            shown_ = target();
+            started_ = true;
+            repaint();
+        } else {
+            startTimerHz(kEaseHz);
+        }
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        if (!started_) {
+            shown_ = target();
+            started_ = true;
+        }
+        const auto rotary = getRotaryParameters();
+        getLookAndFeel().drawRotarySlider(g, 0, 0, getWidth(), getHeight(), shown_,
+                                          rotary.startAngleRadians, rotary.endAngleRadians, *this);
+    }
+
 private:
+    static constexpr int kEaseHz = 60;
+    static constexpr float kEaseStep = 0.3f;
+    static constexpr float kEaseDone = 0.002f;
+
+    float target() { return static_cast<float>(valueToProportionOfLength(getValue())); }
+
+    void timerCallback() override
+    {
+        const float difference = target() - shown_;
+        if (std::abs(difference) < kEaseDone) {
+            shown_ = target();
+            stopTimer();
+        } else {
+            shown_ += difference * kEaseStep;
+        }
+        repaint();
+        owner_.repaint();
+    }
+
     Knob& owner_;
+    float shown_ = 0.0f;
+    bool started_ = false;
 };
 
 Knob::Knob(host::PolylogueProcessor& processor, dsp::Param param, juce::String label)
@@ -134,6 +182,56 @@ bool Knob::applyTypedValue(const juce::String& text)
     parameter->setValueNotifyingHost(parameter->convertTo0to1(*plain));
     parameter->endChangeGesture();
     return true;
+}
+
+void Knob::setHomeMarker(float normalized)
+{
+    if (std::abs(normalized - homeMarker_) < 1e-4f)
+        return;
+    homeMarker_ = normalized;
+    dial_->getProperties().set("changeFromHome", normalized >= 0.0f);
+    repaint();
+}
+
+void Knob::setShowValue(bool show)
+{
+    showValue_ = show;
+    repaint();
+}
+
+void Knob::paintOverChildren(juce::Graphics& g)
+{
+    const auto bounds = dial_->getBounds().toFloat().reduced(2.0f);
+    const float radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) / 2.0f - 2.0f;
+    const auto centre = bounds.getCentre();
+    const float shown = dial_->shownPosition();
+
+    if (homeMarker_ >= 0.0f) {
+        const float home = kStartAngle + homeMarker_ * (kEndAngle - kStartAngle);
+        const float now = kStartAngle + shown * (kEndAngle - kStartAngle);
+        // What has been changed since the sound was made: a bright arc from home to here.
+        if (std::abs(now - home) > 0.02f) {
+            juce::Path change;
+            change.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, juce::jmin(home, now),
+                                 juce::jmax(home, now), true);
+            g.setColour(kInk);
+            g.strokePath(change, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved,
+                                                      juce::PathStrokeType::rounded));
+        }
+        // Home is a hollow dot on the ring; the filled dot the ring already draws is "now".
+        const auto spot = centre.getPointOnCircumference(radius, home);
+        g.setColour(kBackground);
+        g.fillEllipse(juce::Rectangle<float>(9.0f, 9.0f).withCentre(spot));
+        g.setColour(kAccent);
+        g.drawEllipse(juce::Rectangle<float>(7.0f, 7.0f).withCentre(spot), 1.5f);
+    }
+
+    if (showValue_) {
+        g.setFont(mono(radius * 0.36f));
+        g.setColour(kInk.withAlpha(0.85f));
+        g.drawText(juce::String(juce::roundToInt(shown * 100.0f)), dial_->getBounds(),
+                   juce::Justification::centred);
+    }
 }
 
 void Knob::paint(juce::Graphics& g)

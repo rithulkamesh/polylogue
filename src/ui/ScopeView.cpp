@@ -32,6 +32,16 @@ ScopeView::ScopeView(host::PolylogueProcessor& processor) : processor_(processor
     startTimerHz(kFrameRate);
 }
 
+void ScopeView::setStage(bool stage)
+{
+    stage_ = stage;
+    if (stage_)
+        mode_ = Mode::Spectrum;
+    setMouseCursor(stage_ ? juce::MouseCursor::NormalCursor
+                          : juce::MouseCursor::PointingHandCursor);
+    repaint();
+}
+
 void ScopeView::toggleMode()
 {
     mode_ = mode_ == Mode::Wave ? Mode::Spectrum : Mode::Wave;
@@ -46,7 +56,8 @@ void ScopeView::showSpectrum(bool spectrum)
 
 void ScopeView::mouseDown(const juce::MouseEvent&)
 {
-    toggleMode();
+    if (!stage_)
+        toggleMode();
 }
 
 void ScopeView::timerCallback()
@@ -166,10 +177,23 @@ void ScopeView::paintSpectrum(juce::Graphics& g, juce::Rectangle<float> area) co
     fill.lineTo(area.getRight(), area.getBottom());
     fill.lineTo(area.getX(), area.getBottom());
     fill.closeSubPath();
-    g.setColour(kInk.withAlpha(0.08f));
-    g.fillPath(fill);
-    g.setColour(kInk.withAlpha(0.92f));
-    g.strokePath(line, juce::PathStrokeType(1.3f));
+    if (stage_) {
+        g.setGradientFill(juce::ColourGradient(kInk.withAlpha(0.30f), 0.0f, area.getY(),
+                                               kInk.withAlpha(0.0f), 0.0f, area.getBottom(),
+                                               false));
+        g.fillPath(fill);
+        g.setColour(kInk.withAlpha(0.35f));
+        g.strokePath(line, juce::PathStrokeType(4.0f, juce::PathStrokeType::curved,
+                                                juce::PathStrokeType::rounded));
+        g.setColour(kInk);
+        g.strokePath(line, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved,
+                                                juce::PathStrokeType::rounded));
+    } else {
+        g.setColour(kInk.withAlpha(0.08f));
+        g.fillPath(fill);
+        g.setColour(kInk.withAlpha(0.92f));
+        g.strokePath(line, juce::PathStrokeType(1.3f));
+    }
 
     g.setFont(mono(9.0f));
     g.setColour(kDim);

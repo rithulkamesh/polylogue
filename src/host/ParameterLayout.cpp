@@ -21,6 +21,7 @@ std::unique_ptr<juce::RangedAudioParameter> makeFloat(const juce::ParameterID& i
     const auto attributes =
         juce::AudioParameterFloatAttributes()
             .withLabel(spec.unit)
+            .withAutomatable(spec.automatable)
             .withStringFromValueFunction(
                 [spec](float value, int) { return juce::String(formatValue(spec, value)); })
             .withValueFromStringFunction([spec](const juce::String& text) {

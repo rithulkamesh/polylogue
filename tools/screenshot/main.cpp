@@ -20,8 +20,9 @@ namespace {
 struct Options {
     std::string preset = "Warm Pad";
     std::string out = "editor.png";
-    std::string then;   // a second preset to switch to once the editor is showing
-    std::string touch;  // a panel knob to nudge so its readout shows, e.g. "CUTOFF"
+    std::string then;             // a second preset to switch to once the editor is showing
+    std::string screen = "play";  // "play" or "edit"
+    std::string touch;            // a panel knob to nudge so its readout shows, e.g. "CUTOFF"
     float scale = 2.0f;
     int note = 48;
     bool spectrum = false;
@@ -44,6 +45,8 @@ bool parse(int argc, char** argv, Options& options)
                 options.out = value;
             else if (flag == "--then")
                 options.then = value;
+            else if (flag == "--screen")
+                options.screen = value;
             else if (flag == "--touch")
                 options.touch = value;
             else if (flag == "--scale")
@@ -72,7 +75,8 @@ int main(int argc, char** argv)
     Options options;
     if (!parse(argc, argv, options)) {
         std::cerr << "usage: polylogue-screenshot [--preset NAME] [--out FILE.png] [--scale N]\n"
-                     "                           [--note N] [--touch KNOB] [--spectrum] [--map]\n";
+                     "                           [--note N] [--touch KNOB] [--spectrum] [--map] "
+                     "[--screen play|edit]\n";
         return 2;
     }
 
@@ -108,6 +112,10 @@ int main(int argc, char** argv)
         }
 
         std::unique_ptr<juce::AudioProcessorEditor> editor(processor.createEditor());
+        static_cast<ui::PluginEditor&>(*editor).showScreen(options.screen == "edit"
+                                                               ? ui::PluginEditor::Screen::Edit
+                                                               : ui::PluginEditor::Screen::Play,
+                                                           false);
         pump(120);
 
         if (!options.then.empty()) {
@@ -115,7 +123,7 @@ int main(int argc, char** argv)
                 if (entry.name == juce::String(options.then))
                     processor.presets().load(entry);
             }
-            pump(250);
+            pump(600);
         }
         if (!options.touch.empty()) {
             for (std::size_t i = 0; i < dsp::kParamCount; ++i) {
@@ -126,7 +134,7 @@ int main(int argc, char** argv)
                     break;
                 }
             }
-            pump(120);
+            pump(400);
         }
         if (options.map)
             processor.midiMapper().startLearning(host::MidiMapper::slotOf(dsp::Param::Cutoff));

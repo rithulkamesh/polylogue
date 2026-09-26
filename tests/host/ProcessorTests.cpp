@@ -53,9 +53,49 @@ TEST_CASE("every parameter is exposed with its stable id, default and range")
         CHECK(parameter->getName(64) == juce::String(spec.name));
         CHECK(closeEnough(parameter->convertFrom0to1(parameter->getDefaultValue()),
                           spec.defaultValue));
-        CHECK(parameter->isAutomatable());
+        CHECK(parameter->isAutomatable() == spec.automatable);
     }
     CHECK(rig.processor.getParameters().size() == static_cast<int>(dsp::kParamCount));
+}
+
+TEST_CASE("turning a play knob changes the sound, and knobs at home change nothing")
+{
+    const auto loudness = [](Rig& rig) {
+        auto midi = noteOn();
+        double sum = 0.0;
+        for (int block = 0; block < 8; ++block) {
+            for (float x : rig.run(midi, 512))
+                sum += static_cast<double>(x) * static_cast<double>(x);
+            midi.clear();
+        }
+        return sum;
+    };
+
+    Rig home;
+    Rig darker;
+    darker.set(dsp::Param::AxisBright, 0.1f);
+    CHECK(loudness(darker) < 0.5 * loudness(home));
+
+    // Moving a knob and putting it back leaves the sound as it was.
+    Rig back;
+    back.set(dsp::Param::AxisBright, 0.1f);
+    back.set(dsp::Param::AxisBright, back.get(dsp::Param::HomeBright));
+    Rig untouched;
+    CHECK(loudness(back) == loudness(untouched));
+}
+
+TEST_CASE("baking moves the knobs' offsets into the parameters and keeps the sound")
+{
+    Rig rig;
+    rig.set(dsp::Param::AxisBright, 0.2f);
+    const dsp::ParamValues playing = dsp::effectiveValues(rig.processor.presets().currentValues());
+
+    rig.processor.bakeAxes();
+
+    CHECK(rig.get(dsp::Param::Cutoff) == playing[dsp::Param::Cutoff]);
+    CHECK(rig.get(dsp::Param::HomeBright) == rig.get(dsp::Param::AxisBright));
+    const dsp::ParamValues after = rig.processor.presets().currentValues();
+    CHECK(dsp::effectiveValues(after).values == after.values);
 }
 
 TEST_CASE("host normalisation agrees with the parameter table")
@@ -246,6 +286,31 @@ TEST_CASE("a map file from an older version is ignored")
     ensureJuceInitialised();
     host::PolylogueProcessor processor(optionsFor(storage.directory));
     CHECK(processor.midiMapper().controllerFor(host::MidiMapper::slotOf(dsp::Param::Cutoff)) == 43);
+}
+
+TEST_CASE("a map file written before the play knobs existed still gives them their controllers")
+{
+    TempDirectory storage;
+    juce::XmlElement map("MidiMap");
+    map.setAttribute("version", 2);
+    auto* cutoff = map.createNewChildElement("Bind");
+    cutoff->setAttribute("id", "cutoff");
+    cutoff->setAttribute("cc", 43);
+    // The file has already used CC 71 for something else, so METAL must not take it.
+    auto* drive = map.createNewChildElement("Bind");
+    drive->setAttribute("id", "drive");
+    drive->setAttribute("cc", 71);
+    REQUIRE(map.writeTo(storage.directory.getChildFile("midi-map.xml")));
+
+    ensureJuceInitialised();
+    host::PolylogueProcessor processor(optionsFor(storage.directory));
+    const auto& mapper = processor.midiMapper();
+    CHECK(mapper.controllerFor(host::MidiMapper::slotOf(dsp::Param::Cutoff)) == 43);
+    CHECK(mapper.controllerFor(host::MidiMapper::slotOf(dsp::Param::AxisWave)) == 70);
+    CHECK(mapper.controllerFor(host::MidiMapper::slotOf(dsp::Param::AxisMotion)) == 77);
+    CHECK(mapper.controllerFor(host::MidiMapper::slotOf(dsp::Param::Drive)) == 71);
+    CHECK(mapper.controllerFor(host::MidiMapper::slotOf(dsp::Param::AxisMetal)) ==
+          host::MidiMapper::kUnbound);
 }
 
 TEST_CASE("the controller map persists between runs")
