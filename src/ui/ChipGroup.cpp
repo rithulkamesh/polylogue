@@ -2,6 +2,8 @@
 
 #include "ui/Theme.h"
 
+#include <cstdint>
+
 namespace polylogue::ui {
 namespace {
 

@@ -4,6 +4,8 @@
 
 #include <juce_audio_utils/juce_audio_utils.h>
 
+#include <memory>
+
 namespace polylogue::ui {
 
 // The on-screen keyboard. Keys played here go to the synth through the processor's lock-free queue,

@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cctype>
+#include <span>
 #include <string>
 
 namespace polylogue::ui {

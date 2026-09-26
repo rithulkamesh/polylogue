@@ -11,7 +11,9 @@
 
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <functional>
+#include <span>
 
 namespace polylogue::host {
 

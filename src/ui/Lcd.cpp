@@ -4,6 +4,7 @@
 #include "ui/Theme.h"
 
 #include <cmath>
+#include <cstdint>
 
 namespace polylogue::ui {
 namespace {

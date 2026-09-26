@@ -4,6 +4,10 @@
 #include "presets/FactoryPresets.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <span>
 
 namespace polylogue::host {
 namespace {

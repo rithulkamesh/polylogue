@@ -4,6 +4,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <span>
 
 namespace polylogue::dsp {
 namespace {

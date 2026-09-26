@@ -1,5 +1,8 @@
 #include "host/MidiTranslator.h"
 
+#include <cstdint>
+#include <span>
+
 namespace polylogue::host {
 namespace {
 

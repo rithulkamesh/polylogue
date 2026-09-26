@@ -5,8 +5,11 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <random>
+#include <span>
 #include <vector>
 
 using namespace polylogue;

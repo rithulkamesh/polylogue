@@ -2,6 +2,8 @@
 
 #include "dsp/Parameters.h"
 
+#include <memory>
+
 namespace polylogue::host {
 namespace {
 

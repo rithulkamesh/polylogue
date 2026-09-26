@@ -4,6 +4,7 @@
 #include "dsp/Voice.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <vector>
 
 namespace polylogue::test {

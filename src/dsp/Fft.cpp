@@ -2,7 +2,9 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
+#include <span>
 #include <utility>
 
 namespace polylogue::dsp {

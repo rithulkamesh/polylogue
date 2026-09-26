@@ -6,7 +6,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <set>
+#include <span>
 #include <string>
 #include <vector>
 

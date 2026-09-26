@@ -3,10 +3,16 @@
 #include "dsp/Tuning.h"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <optional>
+#include <span>
+#include <string>
+#include <string_view>
 
 namespace polylogue::dsp {
 namespace {

@@ -6,8 +6,10 @@
 #include <juce_events/juce_events.h>
 #include <juce_graphics/juce_graphics.h>
 
+#include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <string_view>
 

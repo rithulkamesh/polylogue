@@ -2,6 +2,8 @@
 
 #include "ui/Theme.h"
 
+#include <cmath>
+
 namespace polylogue::ui {
 namespace {
 

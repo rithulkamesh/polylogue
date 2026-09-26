@@ -3,6 +3,7 @@
 #include "presets/FactoryPresets.h"
 
 #include <algorithm>
+#include <cstdint>
 
 namespace polylogue::ui::preset_menu {
 namespace {

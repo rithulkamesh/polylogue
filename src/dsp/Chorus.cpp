@@ -1,7 +1,9 @@
 #include "dsp/Chorus.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
 
 namespace polylogue::dsp {

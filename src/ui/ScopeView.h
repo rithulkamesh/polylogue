@@ -6,6 +6,7 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 
 #include <array>
+#include <cstdint>
 #include <vector>
 
 namespace polylogue::ui {

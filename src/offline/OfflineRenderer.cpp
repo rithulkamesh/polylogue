@@ -2,6 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <span>
+#include <vector>
 
 namespace polylogue::offline {
 

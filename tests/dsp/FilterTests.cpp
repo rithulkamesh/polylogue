@@ -4,8 +4,11 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <numbers>
+#include <span>
 #include <vector>
 
 using namespace polylogue::dsp;

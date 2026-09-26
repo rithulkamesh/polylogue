@@ -6,6 +6,7 @@
 #include <atomic>
 #include <random>
 #include <thread>
+#include <vector>
 
 using namespace polylogue;
 using namespace polylogue::test;

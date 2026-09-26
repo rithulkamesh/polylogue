@@ -4,6 +4,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
+#include <vector>
+
 namespace polylogue::test {
 
 // JUCE's message manager is created for the whole run by the listener in JuceListener.cpp.

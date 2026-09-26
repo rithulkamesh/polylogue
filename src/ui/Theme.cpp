@@ -2,6 +2,8 @@
 
 #include "BinaryData.h"
 
+#include <cstdint>
+
 namespace polylogue::ui {
 namespace {
 

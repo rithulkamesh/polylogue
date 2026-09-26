@@ -7,7 +7,10 @@
 #include "ui/Theme.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstdint>
+#include <memory>
 
 namespace polylogue::ui {
 namespace {

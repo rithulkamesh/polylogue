@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 #include <fstream>
+#include <span>
 
 namespace polylogue::offline {
 namespace {

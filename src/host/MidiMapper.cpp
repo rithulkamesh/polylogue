@@ -1,5 +1,6 @@
 #include "host/MidiMapper.h"
 
+#include <cstdint>
 #include <utility>
 
 namespace polylogue::host {

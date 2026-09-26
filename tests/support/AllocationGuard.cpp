@@ -1,5 +1,6 @@
 #include "support/AllocationGuard.h"
 
+#include <cstdint>
 #include <cstdlib>
 #include <new>
 

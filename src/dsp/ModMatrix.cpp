@@ -1,6 +1,7 @@
 #include "dsp/ModMatrix.h"
 
 #include <cmath>
+#include <cstdint>
 
 namespace polylogue::dsp {
 namespace {

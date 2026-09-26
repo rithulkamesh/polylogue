@@ -1,6 +1,7 @@
 #include "presets/FactoryPresets.h"
 
 #include <array>
+#include <span>
 #include <type_traits>
 
 namespace polylogue::presets {

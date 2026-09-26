@@ -6,6 +6,11 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include <cmath>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
 using namespace polylogue;
 using namespace polylogue::test;
 
