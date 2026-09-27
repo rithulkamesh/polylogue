@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Fixes the Windows build, which 0.2.0 shipped without: `polylogue-fit` used a C function MSVC
+  rejects under `/WX`. Otherwise identical to 0.2.0.
+
 ## 0.2.0
 
 - **PLAY screen:** eight large knobs (WAVE, METAL, GRIT, BRIGHT, ATTACK, SUSTAIN, EVOLVE, MOTION)
