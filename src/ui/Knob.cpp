@@ -184,15 +184,6 @@ bool Knob::applyTypedValue(const juce::String& text)
     return true;
 }
 
-void Knob::setHomeMarker(float normalized)
-{
-    if (std::abs(normalized - homeMarker_) < 1e-4f)
-        return;
-    homeMarker_ = normalized;
-    dial_->getProperties().set("changeFromHome", normalized >= 0.0f);
-    repaint();
-}
-
 void Knob::setShowValue(bool show)
 {
     showValue_ = show;
@@ -203,28 +194,7 @@ void Knob::paintOverChildren(juce::Graphics& g)
 {
     const auto bounds = dial_->getBounds().toFloat().reduced(2.0f);
     const float radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) / 2.0f - 2.0f;
-    const auto centre = bounds.getCentre();
     const float shown = dial_->shownPosition();
-
-    if (homeMarker_ >= 0.0f) {
-        const float home = kStartAngle + homeMarker_ * (kEndAngle - kStartAngle);
-        const float now = kStartAngle + shown * (kEndAngle - kStartAngle);
-        // What has been changed since the sound was made: a bright arc from home to here.
-        if (std::abs(now - home) > 0.02f) {
-            juce::Path change;
-            change.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, juce::jmin(home, now),
-                                 juce::jmax(home, now), true);
-            g.setColour(kInk);
-            g.strokePath(change, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved,
-                                                      juce::PathStrokeType::rounded));
-        }
-        // Home is a hollow dot on the ring; the filled dot the ring already draws is "now".
-        const auto spot = centre.getPointOnCircumference(radius, home);
-        g.setColour(kBackground);
-        g.fillEllipse(juce::Rectangle<float>(9.0f, 9.0f).withCentre(spot));
-        g.setColour(kAccent);
-        g.drawEllipse(juce::Rectangle<float>(7.0f, 7.0f).withCentre(spot), 1.5f);
-    }
 
     if (showValue_) {
         g.setFont(mono(radius * 0.36f));

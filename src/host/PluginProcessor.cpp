@@ -1,6 +1,5 @@
 #include "host/PluginProcessor.h"
 
-#include "dsp/Axes.h"
 #include "host/ParameterLayout.h"
 #include "presets/FactoryPresets.h"
 
@@ -49,7 +48,7 @@ PolylogueProcessor::PolylogueProcessor(Options options)
         readMidiMap(*xml);
     savedMapVersion_ = mapper_.version();
 
-    engine_.setSettings(dsp::toSettings(dsp::effectiveValues(presets_.currentValues())));
+    engine_.setSettings(dsp::toSettings(presets_.currentValues()));
     engine_.prepare(sampleRate_);
 
     presets_.setChangeCallback([this] {
@@ -138,7 +137,7 @@ void PolylogueProcessor::processBlock(juce::AudioBuffer<float>& audio, juce::Mid
         events_[i].offset = std::clamp(events_[i].offset, 0, count - 1);
 
     applyControlChanges({controls_.data(), translated.controlCount});
-    engine_.setSettings(dsp::toSettings(dsp::effectiveValues(readParameters(count))));
+    engine_.setSettings(dsp::toSettings(readParameters(count)));
 
     float* left = audio.getWritePointer(0);
     float* right = channels > 1 ? audio.getWritePointer(1) : left;
@@ -262,12 +261,19 @@ dsp::ParamValues PolylogueProcessor::readParameters(int blockSamples)
     return values;
 }
 
-void PolylogueProcessor::bakeAxes()
+dsp::Param PolylogueProcessor::macroTarget(std::size_t macro) const
 {
-    const dsp::ParamValues before = presets_.currentValues();
-    const dsp::ParamValues after = dsp::bake(before);
-    if (before.values != after.values)
-        presets_.restore(presets_.currentName(), after, true);
+    const float raw = rawValues_[dsp::index(dsp::Param::Macro1) + macro]->load();
+    const int last = static_cast<int>(dsp::kSoundParamCount) - 1;
+    return static_cast<dsp::Param>(std::clamp(static_cast<int>(std::lround(raw)), 0, last));
+}
+
+void PolylogueProcessor::assignMacro(std::size_t macro, dsp::Param target)
+{
+    auto* holder = this->parameter(static_cast<dsp::Param>(dsp::index(dsp::Param::Macro1) + macro));
+    holder->beginChangeGesture();
+    holder->setValueNotifyingHost(holder->convertTo0to1(static_cast<float>(dsp::index(target))));
+    holder->endChangeGesture();
 }
 
 void PolylogueProcessor::processPendingControlChanges()

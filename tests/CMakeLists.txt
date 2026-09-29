@@ -11,7 +11,6 @@ add_executable(polylogue_dsp_tests
     dsp/EnvelopeTests.cpp
     dsp/FactoryPresetTests.cpp
     dsp/FilterTests.cpp
-    dsp/AxesTests.cpp
     dsp/FmAndChorusTests.cpp
     dsp/GlideTests.cpp
     dsp/LfoTests.cpp

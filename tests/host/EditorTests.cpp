@@ -1,4 +1,3 @@
-#include "dsp/Axes.h"
 #include "host/HostTestSupport.h"
 #include "presets/FactoryPresets.h"
 #include "ui/Knob.h"
@@ -218,33 +217,27 @@ TEST_CASE("every sound parameter has exactly one control on the panel")
         for (const ui::Cell& cell : section.cells)
             ++seen[dsp::index(cell.param)];
     }
-    for (const ui::PlayKnob& knob : ui::playKnobs())
-        ++seen[dsp::index(knob.param)];
     for (std::size_t i = 0; i < seen.size(); ++i) {
         INFO(dsp::paramSpecs()[i].id);
-        // Home positions are saved with the sound but have no control of their own.
+        // Macro assignments are saved with the sound but have no control of their own.
         CHECK(seen[i] == (dsp::paramSpecs()[i].automatable ? 1 : 0));
     }
 }
 
-TEST_CASE("the editor opens on PLAY and EDIT shows the sound as it plays")
+TEST_CASE("the editor opens on PLAY, and a macro assigned meanwhile shows on its knob")
 {
     EditorRig rig;
     auto base = rig.editor();
     auto* editor = dynamic_cast<ui::PluginEditor*>(base.get());
     REQUIRE(editor != nullptr);
     CHECK(editor->screen() == ui::PluginEditor::Screen::Play);
+    CHECK(editor->macroKnobTarget(0) == dsp::Param::Cutoff);
 
-    // Turn BRIGHT down on the play screen, then switch to EDIT.
-    auto* bright = rig.processor.parameter(dsp::Param::AxisBright);
-    bright->setValueNotifyingHost(0.2f);
-    const dsp::ParamValues playing = dsp::effectiveValues(rig.processor.presets().currentValues());
-    REQUIRE(playing[dsp::Param::Cutoff] < 8000.0f);
-
+    // Assign macro 1 to RESONANCE, as the EDIT panel's menu does, then come back to PLAY.
     editor->showScreen(ui::PluginEditor::Screen::Edit, false);
-    const dsp::ParamValues stored = rig.processor.presets().currentValues();
-    CHECK(stored[dsp::Param::Cutoff] == playing[dsp::Param::Cutoff]);
-    CHECK(dsp::homeOf(stored).values == dsp::knobsOf(stored).values);
+    rig.processor.assignMacro(0, dsp::Param::Resonance);
+    editor->showScreen(ui::PluginEditor::Screen::Play, false);
+    CHECK(editor->macroKnobTarget(0) == dsp::Param::Resonance);
 
     // Both screens render.
     for (auto screen : {ui::PluginEditor::Screen::Play, ui::PluginEditor::Screen::Edit}) {

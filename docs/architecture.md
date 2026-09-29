@@ -7,9 +7,9 @@ two-stage envelope and one LFO. It is not a hardware clone. Branding, UI and pre
 **Product direction.** The **EDIT** panel follows the monologue's arrangement (master and drive,
 the oscillators, mixer, filter, envelopes, LFO) in the visual language of the sibling `chorale`
 project, with an LCD, a visualizer, a preset browser and an on-screen keyboard. The **PLAY** screen
-is eight large knobs that describe a sound by how it sounds and stay in step with the panel (see
-[play-knobs.md](play-knobs.md)). An early eight-knob-only interface hid too much of the sound, which
-is why the full panel exists; PLAY is a second view of the same sound, not a replacement. The
+is eight large macro knobs, each assigned from the panel to one parameter. An early eight-knob-only
+interface hid too much of the sound, which is why the full panel exists; PLAY is a second view of
+the same parameters, not a replacement. The
 sequencer and motion lanes of the original brief are still deferred (§5.6).
 
 Status: all nine implementation phases (§11) are complete. This document describes what is built.
@@ -164,7 +164,7 @@ flowchart TD
     overlay -. "message-thread timer" .-> parameter["Host parameters"]
     parameter --> atomics["Atomics"] --> values["ParamValues"]
     overlay --> values
-    values --> effective["effectiveValues<br/>play knobs vs home"] --> settings["SynthSettings"] --> engine
+    values --> settings["SynthSettings"] --> engine
     engine["Engine<br/>sub-blocks ≤ 64 · mix · gain · chorus · limiter"] --> vm["VoiceManager<br/>poly · mono · glide"] --> voices["Voice × 16"]
     engine --> host["L/R (identical) → host"]
     engine --> scope["ScopeBuffer → LCD and PLAY spectrum"]
@@ -207,8 +207,8 @@ never disagree about a mapping. IDs are **append-only**: renaming or reusing one
 projects. A test pins the full ID list.
 
 Kinds: `Float` (curves `Linear`, `Exponential`, `Power`, `SymmetricPower`; optional step), `Int`,
-`Choice`, `Bool`. The 39 sound parameters and the eight play knobs are host-automatable; the eight
-*home* positions are saved with the sound but hidden from hosts (`ParamSpec::automatable`). A per-block `ParamValues` (plain units)
+`Choice`, `Bool`. The 39 sound parameters are host-automatable; the eight macro assignments are
+saved with the sound but hidden from hosts (`ParamSpec::automatable`). A per-block `ParamValues` (plain units)
 is converted once into `SynthSettings`, the typed struct the voices read, so DSP modules never
 index into the table. A test asserts that the table's defaults reproduce `SynthSettings{}`.
 
@@ -483,7 +483,7 @@ How the rules are met, and how they are checked:
 flowchart TB
     plugin["Polylogue<br/>VST3 · AU · Standalone<br/>(PluginEntry only)"] --> ui["polylogue_ui<br/>INTERFACE sources, JUCE GUI<br/>Theme, LookAndFeel, Knob, Lcd, ScopeView, PluginEditor, …"]
     ui --> host["polylogue_host<br/>INTERFACE sources, JUCE non-GUI<br/>ParameterLayout, MidiTranslator, MidiMapper,<br/>PresetManager, ScopeBuffer, PolylogueProcessor"]
-    host --> presets["polylogue_presets<br/>31 factory presets and home positions"]
+    host --> presets["polylogue_presets<br/>31 factory presets"]
     host --> dsp["polylogue_dsp<br/>pure C++20, no JUCE"]
     presets --> dsp
     offline["polylogue_offline<br/>OfflineRenderer, WavWriter"] --> dsp
@@ -522,14 +522,14 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
   CC that another control owns moves it. The map lives in the session and is mirrored to
   `~/Library/Application Support/Polylogue/midi-map.xml` (one `<Bind id cc>` per parameter), which
   wins on load so a new instance keeps the user's controller setup.
-- **Play knobs:** eight parameters (`axis_*`, CC 70–77 by default) and eight hidden home positions
-  (`home_*`). The processor plays `dsp::effectiveValues(stored)`; `PolylogueProcessor::bakeAxes`
-  commits the offsets when the editor leaves PLAY. See [play-knobs.md](play-knobs.md).
+- **Macros:** eight hidden integer parameters (`macro1`–`macro8`) each holding the index of the
+  parameter it moves. A PLAY knob is an ordinary `Knob` on that parameter, so the engine, MIDI map
+  and automation are unchanged. Right-click a control on EDIT to assign it
+  (`PolylogueProcessor::assignMacro`); the editor rebuilds the knob when the assignment changes.
 - **Presets:** 31 factory presets as `constexpr` tables of overrides on the defaults, in nine
   categories (Pad, Bell, Gong, Bass, Lead, Pluck, Ambient, Distorted, Keys), loudness-matched with
   `polylogue-render --list` to within 2.4 dB of each other (Wind, capped by the +6 dB level range,
-  sits 3.5 dB below the loudest). A preset also sets its play knobs' home
-  position (found by `polylogue-fit`, stored in `FactoryAxes.inc`). Loading is deterministic. User presets are XML in `~/Library/Application Support/Polylogue/Presets/`;
+  sits 3.5 dB below the loudest). Loading is deterministic. User presets are XML in `~/Library/Application Support/Polylogue/Presets/`;
   damaged files are skipped. The MIDI map is deliberately not part of a preset. Presets are also
   the host's programs.
 - **UI (chorale's language):** near-black canvas, IBM Plex (embedded, OFL), white ink, one neutral
@@ -539,7 +539,7 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
   (the **EDIT** screen; row 1: MASTER, VCO 1, VCO 2, MIXER, FILTER; row 2: AMP EG, MOD EG, LFO, PLAY; then octave, tune,
   bend range, glide) with a label and its CC under every control, then an on-screen keyboard
   (C2–C7, a `MidiKeyboardComponent` restyled to the panel). Four small buttons: **PLAY** / **EDIT** and **SAVE** / **MAP**, and a MIDI activity light. PLAY
-  replaces the panel with a live spectrum and the eight play knobs; the two screens crossfade, and
+  replaces the panel with a live spectrum and the eight macro knobs; the two screens crossfade, and
   every knob glides to new values instead of jumping. Keys played on screen reach the audio thread through a
   lock-free FIFO; MIDI notes come back through another so a hardware keyboard lights the keys. The visualizer is an
   oscilloscope with a rising-edge trigger and auto-gain, or a spectrum; click to switch. Clicking
@@ -579,7 +579,7 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
 | 6 | Parameters, state, presets, MIDI | Done: table-driven, 31 presets, learnable CC map |
 | 7 | UI | Done: LCD, full panel, visualizer, keyboard, preset menu, save, map |
 | 8 | Tests, profiling, cleanup | Done: see §13 |
-| 9 | PLAY screen | Done: eight-knob layer over the panel, presets' home positions, `polylogue-fit` |
+| 9 | PLAY screen | Done: eight macro knobs, each assigned to one panel parameter |
 
 ## 12. Decisions log
 
@@ -600,9 +600,7 @@ creates its editor through an injected factory, so `host` never depends on `ui`.
 | Voice capacity | 16 compile-time, runtime limit | Keeps "no allocation"; growth is one constant |
 | Level default | 0 dB | The engine already reserves headroom (0.35 and a soft limiter) |
 | Mod wheel / aftertouch | Deferred | Not on the monologue; the matrix has room |
-| Eight play knobs | Offsets from a stored home, not a replacement for the parameters | A preset plays exactly as made, hand tuning survives, and the result never depends on the order knobs were turned |
-| Baking | On leaving PLAY | EDIT then shows the sound as it plays, so fine tuning starts from what you hear |
-| Knob axes | Chosen by what is heard, checked by fitting every preset | Coverage is measured (`polylogue-fit`), not assumed |
+| Eight play knobs | Macros: each is assigned to one parameter from EDIT | A knob that moved many parameters at once felt random; a macro moves exactly what you chose |
 | Platforms | macOS, Linux and Windows in CI and releases | The DSP is portable; only the JUCE layer needed platform care |
 
 ## 13. Verification and measured performance
@@ -619,8 +617,8 @@ Automated (`ctest --preset dev`; the `sanitize` and `tsan` presets run the same 
 | Engine | Sample-exact note starts; identical output for host block sizes 1–4096; bend; pedal; limiter; polyphony limit; 128 notes × velocities × 2 rates; 3-second random MIDI floods |
 | Sample rates | 22.05–192 kHz: every preset renders finite and unclipped; pitch exact |
 | Parameters | Stable IDs, ranges, curves, formatting and parsing round trips; defaults ⇒ default settings |
-| Presets | 31 legal, unique, loud enough, loudness-matched, finite, terminating; categories behave (plucks die, gongs ring, pads swell); each has its own home position |
-| Play knobs | Every knob position is a legal, finite, audible sound; at home the stored sound is untouched; one knob moves only what it drives; hand tuning survives; baking keeps the sound; the panel shows the sound after switching screens |
+| Presets | 31 legal, unique, loud enough, loudness-matched, finite, terminating; categories behave (plucks die, gongs ring, pads swell) |
+| Macros | Assignment persists with the session and does not change the sound; a PLAY knob follows its assignment |
 | Host | Layout ↔ table; state round trip, forward/backward compatibility, garbage rejection; MIDI translation; controller map, learn, persistence; CC → knob → parameter; presets (factory, user, damaged); programs |
 | Real-time | Zero allocations on the audio path; no data races (TSan) |
 | UI | Editor constructs, lays out, and paints at every size, for every preset, in every visualizer state, on both screens |

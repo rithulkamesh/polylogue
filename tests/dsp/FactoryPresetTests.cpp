@@ -93,28 +93,11 @@ TEST_CASE("resolving a preset starts from the defaults")
     std::set<dsp::Param> overridden;
     for (const auto& entry : preset.values)
         overridden.insert(entry.param);
-    // The play knobs are the one thing a preset sets besides its overrides: they sit at its home.
-    for (std::size_t i = 0; i < dsp::index(dsp::Param::AxisWave); ++i) {
+    for (std::size_t i = 0; i < dsp::kParamCount; ++i) {
         const auto param = static_cast<dsp::Param>(i);
         if (overridden.count(param) == 0)
             CHECK(values[param] == defaults[param]);
     }
-    CHECK(dsp::knobsOf(values).values == presets::homePosition(preset).values);
-    CHECK(dsp::homeOf(values).values == presets::homePosition(preset).values);
-}
-
-TEST_CASE("every factory preset has its own home position for the play knobs")
-{
-    std::set<std::array<float, dsp::kAxisCount>> seen;
-    for (const auto& preset : presets::factoryPresets()) {
-        const dsp::Axes home = presets::homePosition(preset);
-        for (float v : home.values) {
-            CHECK(v >= 0.0f);
-            CHECK(v <= 1.0f);
-        }
-        seen.insert(home.values);
-    }
-    CHECK(seen.size() == presets::factoryPresets().size());
 }
 
 TEST_CASE("every preset plays a healthy, finite, unclipped sound and then ends")

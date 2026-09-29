@@ -33,17 +33,14 @@ TEST_CASE("parameter ids are unique and non-empty")
 TEST_CASE("parameter ids are stable")
 {
     const std::vector<std::string> expected = {
-        "level",       "polyphony",   "key_mode",     "octave",       "tune",
-        "bend_range",  "glide_time",  "glide_mode",   "drive",        "osc1_wave",
-        "osc1_shape",  "osc2_wave",   "osc2_octave",  "osc2_pitch",   "osc2_sync_ring",
-        "osc2_shape",  "osc1_level",  "osc2_level",   "cutoff",       "resonance",
-        "key_track",   "vel_cutoff",  "amp_type",     "amp_attack",   "amp_decay",
-        "vel_amp",     "env_type",    "env_attack",   "env_decay",    "env_int",
-        "env_target",  "lfo_wave",    "lfo_mode",     "lfo_rate",     "lfo_int",
-        "lfo_target",  "chorus_mix",  "chorus_rate",  "chorus_depth", "axis_wave",
-        "axis_metal",  "axis_grit",   "axis_bright",  "axis_attack",  "axis_sustain",
-        "axis_evolve", "axis_motion", "home_wave",    "home_metal",   "home_grit",
-        "home_bright", "home_attack", "home_sustain", "home_evolve",  "home_motion"};
+        "level",       "polyphony",   "key_mode",       "octave",     "tune",       "bend_range",
+        "glide_time",  "glide_mode",  "drive",          "osc1_wave",  "osc1_shape", "osc2_wave",
+        "osc2_octave", "osc2_pitch",  "osc2_sync_ring", "osc2_shape", "osc1_level", "osc2_level",
+        "cutoff",      "resonance",   "key_track",      "vel_cutoff", "amp_type",   "amp_attack",
+        "amp_decay",   "vel_amp",     "env_type",       "env_attack", "env_decay",  "env_int",
+        "env_target",  "lfo_wave",    "lfo_mode",       "lfo_rate",   "lfo_int",    "lfo_target",
+        "chorus_mix",  "chorus_rate", "chorus_depth",   "macro1",     "macro2",     "macro3",
+        "macro4",      "macro5",      "macro6",         "macro7",     "macro8"};
     REQUIRE(expected.size() == kParamCount);
     for (std::size_t i = 0; i < expected.size(); ++i)
         CHECK(expected[i] == paramSpecs()[i].id);

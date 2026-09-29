@@ -1,9 +1,17 @@
 # Changelog
 
-## 0.2.1
+## 0.3.0
 
-- Fixes the Windows build, which 0.2.0 shipped without: `polylogue-fit` used a C function MSVC
-  rejects under `/WX`. Otherwise identical to 0.2.0.
+- Fixes the Windows build, which 0.2.0 shipped without (`polylogue-fit`, now removed, used a C
+  function MSVC rejects under `/WX`).
+
+- **PLAY knobs are now macros.** Each of the eight knobs moves one parameter that you pick: right
+  click a control on EDIT, *Assign to PLAY Macro*, 1 to 8. Nothing else moves, and the assignments
+  are saved with the sound. Defaults: cutoff, resonance, drive, VCO 1 shape, amp attack, amp decay,
+  LFO int, chorus mix.
+- Removes the WAVE/METAL/GRIT/BRIGHT/ATTACK/SUSTAIN/EVOLVE/MOTION mapping, the per-preset home
+  positions, the bake step, `polylogue-fit`, and CC 70 to 77. Sounds saved with 0.2.x lose their
+  play knob positions; their 39 parameters are unchanged.
 
 ## 0.2.0
 

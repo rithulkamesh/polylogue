@@ -54,24 +54,16 @@ enum class Param : std::uint8_t {
     ChorusMix,
     ChorusRate,
     ChorusDepth,
-    // The eight play knobs, and where each sat when the sound was made (its home). The sound is
-    // the stored values above moved by however far a knob is from home; see Axes.h.
-    AxisWave,
-    AxisMetal,
-    AxisGrit,
-    AxisBright,
-    AxisAttack,
-    AxisSustain,
-    AxisEvolve,
-    AxisMotion,
-    HomeWave,
-    HomeMetal,
-    HomeGrit,
-    HomeBright,
-    HomeAttack,
-    HomeSustain,
-    HomeEvolve,
-    HomeMotion,
+    // The eight macro knobs on the PLAY screen. Each holds the index of the parameter it moves,
+    // chosen from the EDIT panel and saved with the sound.
+    Macro1,
+    Macro2,
+    Macro3,
+    Macro4,
+    Macro5,
+    Macro6,
+    Macro7,
+    Macro8,
     Count
 };
 
@@ -81,6 +73,10 @@ constexpr std::size_t index(Param param)
 {
     return static_cast<std::size_t>(param);
 }
+
+// The parameters a macro can move are the ones before the macros themselves.
+inline constexpr std::size_t kMacroCount = 8;
+inline constexpr std::size_t kSoundParamCount = index(Param::Macro1);
 
 enum class ParamKind : std::uint8_t {
     Float,

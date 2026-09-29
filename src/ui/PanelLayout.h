@@ -29,16 +29,6 @@ struct Section {
 // the two envelopes, the LFO, then performance settings. Every parameter appears exactly once.
 std::span<const Section> panelSections();
 
-// One of the eight play knobs and what moving it does to the sound, low to high.
-struct PlayKnob {
-    dsp::Param param;
-    const char* label;
-    const char* hint;
-};
-
-// The play screen's knobs, in order. Their values are the eight axes; see dsp/Axes.h.
-std::span<const PlayKnob> playKnobs();
-
 // The label printed under a control, or the parameter's name in capitals.
 const char* controlLabel(dsp::Param param);
 

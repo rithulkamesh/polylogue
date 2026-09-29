@@ -53,9 +53,9 @@ public:
     // Message thread only.
     bool popMonitoredNote(KeyEvent& event);
 
-    // Folds the play knobs' offsets into the 39 sound parameters and sets home to the knobs, so the
-    // edit panel shows the sound as it plays. Message thread only.
-    void bakeAxes();
+    // The parameter each PLAY macro knob moves. Message thread only.
+    dsp::Param macroTarget(std::size_t macro) const;
+    void assignMacro(std::size_t macro, dsp::Param target);
 
     // Delivers controller-driven control moves to the parameters. Called by the timer; exposed so a
     // caller without a running message loop can drive it.

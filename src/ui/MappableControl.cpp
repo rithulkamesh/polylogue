@@ -9,7 +9,8 @@ enum MenuItem {
     kLearn = 1,
     kClear,
     kResetValue,
-    kResetMap
+    kResetMap,
+    kMacro = 100  // one item per macro from here
 };
 
 }  // namespace
@@ -81,6 +82,14 @@ void MappableControl::showContextMenu()
     menu.addItem(kClear, "Clear MIDI Mapping",
                  processor_.midiMapper().controllerFor(slot) != host::MidiMapper::kUnbound);
     menu.addSeparator();
+    const bool assignable = dsp::index(param_) < dsp::kSoundParamCount;
+    juce::PopupMenu macros;
+    for (std::size_t i = 0; i < dsp::kMacroCount; ++i) {
+        macros.addItem(kMacro + static_cast<int>(i), "Macro " + juce::String(i + 1), assignable,
+                       processor_.macroTarget(i) == param_);
+    }
+    menu.addSubMenu("Assign to PLAY Macro", macros, assignable);
+    menu.addSeparator();
     menu.addItem(kResetValue, "Reset to Default");
     menu.addSeparator();
     menu.addItem(kResetMap, "Restore Default Controller Map");
@@ -109,6 +118,8 @@ void MappableControl::showContextMenu()
                 mapper.resetToDefaults();
                 break;
             default:
+                if (choice >= kMacro && choice < kMacro + static_cast<int>(dsp::kMacroCount))
+                    processor_.assignMacro(static_cast<std::size_t>(choice - kMacro), param_);
                 break;
             }
             refreshMapping();

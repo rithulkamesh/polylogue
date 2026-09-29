@@ -77,27 +77,8 @@ std::span<const Section> panelSections()
     return kSections;
 }
 
-std::span<const PlayKnob> playKnobs()
-{
-    static constexpr PlayKnob kKnobs[] = {
-        {Param::AxisWave, "WAVE", "TRIANGLE  SAW  SQUARE"},
-        {Param::AxisMetal, "METAL", "THICK  RING  BELL"},
-        {Param::AxisGrit, "GRIT", "CLEAN  DRIVEN  NOISY"},
-        {Param::AxisBright, "BRIGHT", "DARK  OPEN"},
-        {Param::AxisAttack, "ATTACK", "CLICK  SWELL"},
-        {Param::AxisSustain, "SUSTAIN", "SHORT  RING  HELD"},
-        {Param::AxisEvolve, "EVOLVE", "OPENS  STATIC  CLOSES"},
-        {Param::AxisMotion, "MOTION", "STILL  VIBRATO  WIDE"},
-    };
-    return kKnobs;
-}
-
 const char* controlLabel(Param param)
 {
-    for (const PlayKnob& knob : playKnobs()) {
-        if (knob.param == param)
-            return knob.label;
-    }
     for (const Section& section : kSections) {
         for (const Cell& cell : section.cells) {
             if (cell.param == param)

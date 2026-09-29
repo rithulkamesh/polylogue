@@ -55,10 +55,22 @@ constexpr ParamSpec intParam(const char* id, const char* name, int min, int max,
             {}};
 }
 
-// Where a play knob sat when the sound was made. Saved with the sound, never automated.
-constexpr ParamSpec homeParam(const char* id, const char* name, float def)
+// A macro knob's target: the index of the parameter it moves. Saved with the sound, never
+// automated.
+constexpr ParamSpec macroParam(const char* id, const char* name, Param target)
 {
-    return {id, name, ParamKind::Float, 0.0f, 1.0f, def, Curve::Linear, 1.0f, 0.0f, "", {}, false};
+    return {id,
+            name,
+            ParamKind::Int,
+            0.0f,
+            static_cast<float>(kSoundParamCount - 1),
+            static_cast<float>(index(target)),
+            Curve::Linear,
+            1.0f,
+            1.0f,
+            "",
+            {},
+            false};
 }
 
 template<std::size_t N>
@@ -120,23 +132,14 @@ constexpr std::array<ParamSpec, kParamCount> kSpecs = {{
     floatParam("chorus_mix", "Chorus Mix", 0.0f, 1.0f, 0.0f),
     floatParam("chorus_rate", "Chorus Rate", 0.05f, 5.0f, 0.6f, "Hz", Curve::Exponential),
     floatParam("chorus_depth", "Chorus Depth", 0.0f, 1.0f, 0.5f),
-    // Neutral play-knob positions: a plain, static, unmodulated saw (see Axes::neutral()).
-    floatParam("axis_wave", "Play Wave", 0.0f, 1.0f, 0.6f),
-    floatParam("axis_metal", "Play Metal", 0.0f, 1.0f, 0.0f),
-    floatParam("axis_grit", "Play Grit", 0.0f, 1.0f, 0.0f),
-    floatParam("axis_bright", "Play Bright", 0.0f, 1.0f, 0.75f),
-    floatParam("axis_attack", "Play Attack", 0.0f, 1.0f, 0.0f),
-    floatParam("axis_sustain", "Play Sustain", 0.0f, 1.0f, 0.6f),
-    floatParam("axis_evolve", "Play Evolve", 0.0f, 1.0f, 0.5f),
-    floatParam("axis_motion", "Play Motion", 0.0f, 1.0f, 0.0f),
-    homeParam("home_wave", "Home Wave", 0.6f),
-    homeParam("home_metal", "Home Metal", 0.0f),
-    homeParam("home_grit", "Home Grit", 0.0f),
-    homeParam("home_bright", "Home Bright", 0.75f),
-    homeParam("home_attack", "Home Attack", 0.0f),
-    homeParam("home_sustain", "Home Sustain", 0.6f),
-    homeParam("home_evolve", "Home Evolve", 0.5f),
-    homeParam("home_motion", "Home Motion", 0.0f),
+    macroParam("macro1", "Macro 1", Param::Cutoff),
+    macroParam("macro2", "Macro 2", Param::Resonance),
+    macroParam("macro3", "Macro 3", Param::Drive),
+    macroParam("macro4", "Macro 4", Param::Osc1Shape),
+    macroParam("macro5", "Macro 5", Param::AmpAttack),
+    macroParam("macro6", "Macro 6", Param::AmpDecay),
+    macroParam("macro7", "Macro 7", Param::LfoInt),
+    macroParam("macro8", "Macro 8", Param::ChorusMix),
 }};
 
 float snapToStep(float value, float step)

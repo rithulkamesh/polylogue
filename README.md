@@ -6,17 +6,16 @@ LFO. Original branding, interface and sounds; nothing from the hardware is copie
 
 VST3 and Standalone on macOS, Windows and Linux, plus AU on macOS. C++20, JUCE 8, CMake.
 
-Two screens over one sound. **PLAY** is eight large knobs that describe a sound by how it sounds
-(wave, metal, grit, bright, attack, sustain, evolve, motion), with a live spectrum. **EDIT** is the
-full panel in the monologue's arrangement: master and drive, two oscillators, mixer, filter, two
+Two screens over one sound. **PLAY** is eight large macro knobs with a live spectrum; each one
+moves the single parameter you assigned to it. **EDIT** is the full panel in the monologue's arrangement: master and drive, two oscillators, mixer, filter, two
 envelopes, LFO, chorus and performance settings. Both sit under a display with a visualizer and a
 preset browser, above an on-screen keyboard. Every control can be driven and learned from MIDI.
 
 ![PLAY screen](docs/play.png)
 ![EDIT screen](docs/panel.png)
 
-Switching from PLAY to EDIT commits the knobs into the panel's parameters, so you shape a sound
-quickly on PLAY and then fine tune it on EDIT. See [docs/play-knobs.md](docs/play-knobs.md).
+To set a macro, right-click any control on EDIT and choose *Assign to PLAY Macro*, then 1 to 8. The
+PLAY knob becomes that control and nothing else moves. The assignments are saved with the sound.
 
 | Spectrum | MIDI learn |
 |:--------:|:----------:|
@@ -97,10 +96,9 @@ Presets: `dev` (Debug), `sanitize` (ASan + UBSan, no plugin bundles), `tsan` (Th
   choose the device under *Options*.
 - **Presets:** click the name on the display to browse by category, use `‹ ›` or the mouse wheel to
   step through them. 31 factory sounds: pads, bells, gongs, basses, leads, plucks, ambient,
-  distorted, keys. Each opens with its play knobs at a sensible spot to turn from.
-- **PLAY and EDIT:** the buttons at the top switch screens with a crossfade. On PLAY the ring
-  around each knob shows what you have changed from the sound's starting point (a hollow dot is
-  where it started).
+  distorted, keys.
+- **PLAY and EDIT:** the buttons at the top switch screens with a crossfade. The macros start on
+  cutoff, resonance, drive, VCO 1 shape, amp attack, amp decay, LFO int and chorus mix.
 - **Saving:** **SAVE** (or *Save As...* in the preset menu) stores the current sound under a name.
   Saved sounds appear under *User* and live in `~/Library/Application Support/Polylogue/Presets`.
   A dot after the name means the sound was edited since it was loaded.
@@ -111,8 +109,8 @@ Presets: `dev` (Debug), `sanitize` (ASan + UBSan, no plugin bundles), `tsan` (Th
 Controls answer to the monologue's own controller chart by default (attack 16, decay 17, LFO rate
 24, EG int 25, LFO int 26, drive 28, VCO 2 pitch 35, shapes 36/37, levels 39/40, cutoff 43,
 resonance 44, octave 49, waves 50/51, LFO target/wave/mode 56/58/59, sync/ring 60, EG type/target
-61/62, master level 7), so a controller set up for a monologue works unchanged. The eight PLAY
-knobs answer to CC 70 to 77. Every control shows its CC beneath it. To use your own controller:
+61/62, master level 7), so a controller set up for a monologue works unchanged. A macro knob is its
+target's control, so it answers to the target's CC. Every control shows its CC beneath it. To use your own controller:
 
 1. Press **MAP** and click any control, knob or switch (or right-click it and choose *MIDI Learn*).
 2. Move a control on your hardware. It is bound, and the label under the knob shows `CC n`.
@@ -148,15 +146,13 @@ without retriggering, as on the monologue.
 polylogue-render --list                       # every preset: peak, loudness, tail length
 polylogue-render --preset "Glass Bell" --notes 48,55 --hold 2 --seconds 8 --out bell.wav
 polylogue-benchmark                           # CPU per scenario (use a Release build)
-polylogue-fit                                 # how well the eight play knobs reproduce each preset
 polylogue-screenshot --preset "Tam Tam" --out editor.png [--spectrum] [--map] [--touch CUTOFF]
 ```
 
 ## Development
 
 - [`docs/architecture.md`](docs/architecture.md) describes the design, the research behind it, and
-  how each real-time rule is checked. [`docs/play-knobs.md`](docs/play-knobs.md) covers the PLAY
-  screen and how well eight knobs cover the sounds. [`docs/monologue-research.md`](docs/monologue-research.md)
+  how each real-time rule is checked. [`docs/monologue-research.md`](docs/monologue-research.md)
   records what is publicly known about the hardware. See also [`CHANGELOG.md`](CHANGELOG.md).
 - `scripts/format.sh` formats the code (K&R braces, 4 spaces, 100 columns; needs `clang-format`).
   `scripts/format.sh --check` verifies without changing files.

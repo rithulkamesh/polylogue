@@ -38,7 +38,7 @@ std::unique_ptr<juce::RangedAudioParameter> makeInt(const juce::ParameterID& id,
     return std::make_unique<juce::AudioParameterInt>(
         id, spec.name, static_cast<int>(spec.min), static_cast<int>(spec.max),
         static_cast<int>(spec.defaultValue),
-        juce::AudioParameterIntAttributes().withLabel(spec.unit));
+        juce::AudioParameterIntAttributes().withLabel(spec.unit).withAutomatable(spec.automatable));
 }
 
 std::unique_ptr<juce::RangedAudioParameter> makeChoice(const juce::ParameterID& id,

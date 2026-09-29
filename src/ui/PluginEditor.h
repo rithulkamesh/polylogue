@@ -29,9 +29,8 @@ public:
 
     Lcd& display() { return lcd_; }
 
-    // PLAY is eight large knobs for shaping a sound quickly; EDIT is the full panel for fine
-    // tuning. Leaving PLAY folds the knobs' offsets into the panel's parameters first, so EDIT
-    // shows the sound exactly as it plays.
+    // PLAY is eight large macro knobs; EDIT is the full panel. Right-click a control on EDIT and
+    // assign it to a macro, and that macro knob moves that one parameter and nothing else.
     enum class Screen {
         Play,
         Edit
@@ -39,6 +38,7 @@ public:
     // With `animate` the two screens crossfade; without, the switch is immediate.
     void showScreen(Screen screen, bool animate = true);
     Screen screen() const { return screen_; }
+    dsp::Param macroKnobTarget(std::size_t macro) const { return playKnobs_[macro]->param(); }
 
 private:
     static constexpr int kBaseWidth = 1200;
@@ -54,7 +54,8 @@ private:
     void pollParameters();
     void pollMidi();
     void setMapMode(bool on);
-    void updateHomeMarkers();
+    std::unique_ptr<Knob> makeMacroKnob(std::size_t macro);
+    void refreshMacros();
     void applyScreenMix();
     void stepTransition();
     void layoutPlayScreen(float scale);
@@ -68,7 +69,7 @@ private:
     KeyboardBar keyboard_;
     std::vector<std::unique_ptr<MappableControl>> controls_;
     std::vector<std::unique_ptr<Knob>> playKnobs_;
-    std::vector<juce::Rectangle<float>> playHints_;  // in base units, one per play knob
+    std::array<dsp::Param, dsp::kMacroCount> macroTargets_{};  // what each play knob is showing
     std::vector<SectionMark> marks_;
     juce::Rectangle<float> stagePanel_;  // in base units
     juce::TextButton saveButton_{"SAVE"};

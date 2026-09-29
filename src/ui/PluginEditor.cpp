@@ -35,7 +35,6 @@ constexpr float kColumnChipWidth = 58.0f;
 constexpr float kRowChipWidth = 40.0f;
 constexpr float kKeyboardHeight = 80.0f;
 constexpr float kPlayKnobSize = 120.0f;
-constexpr float kPlayHintHeight = 22.0f;
 constexpr float kStageHeight = 92.0f;
 constexpr float kStageGap = 16.0f;
 constexpr float kStageInset = 16.0f;
@@ -93,12 +92,10 @@ PluginEditor::PluginEditor(host::PolylogueProcessor& owner)
 
     stage_.setStage(true);
     addAndMakeVisible(stage_);
-    for (const PlayKnob& knob : playKnobs()) {
-        playKnobs_.push_back(std::make_unique<Knob>(owner, knob.param, knob.label));
-        playKnobs_.back()->setShowValue(true);
+    for (std::size_t i = 0; i < dsp::kMacroCount; ++i) {
+        playKnobs_.push_back(makeMacroKnob(i));
         addAndMakeVisible(*playKnobs_.back());
     }
-    playHints_.resize(playKnobs_.size());
 
     for (auto* button : {&saveButton_, &mapButton_, &playButton_, &editButton_})
         addAndMakeVisible(*button);
@@ -202,6 +199,35 @@ void PluginEditor::resized()
     editButton_.setBounds(scaled({centre + 4.0f, 11.0f, 64.0f, 24.0f}));
 }
 
+// A play knob is the panel control for whichever parameter its macro is assigned to.
+std::unique_ptr<Knob> PluginEditor::makeMacroKnob(std::size_t macro)
+{
+    const dsp::Param target = processor_.macroTarget(macro);
+    macroTargets_[macro] = target;
+    auto knob = std::make_unique<Knob>(processor_, target,
+                                       juce::String(dsp::paramSpec(target).name).toUpperCase());
+    knob->setShowValue(true);
+    knob->setMapMode(mapMode_);
+    return knob;
+}
+
+// An assignment made from the EDIT panel replaces the knob with one for the new target.
+void PluginEditor::refreshMacros()
+{
+    bool changed = false;
+    for (std::size_t i = 0; i < playKnobs_.size(); ++i) {
+        if (processor_.macroTarget(i) == macroTargets_[i])
+            continue;
+        playKnobs_[i] = makeMacroKnob(i);
+        addChildComponent(*playKnobs_[i]);
+        changed = true;
+    }
+    if (changed) {
+        resized();
+        applyScreenMix();
+    }
+}
+
 // The play screen: a live spectrum, then the eight knobs in one row, centred in the space the edit
 // panel uses.
 void PluginEditor::layoutPlayScreen(float scale)
@@ -216,7 +242,7 @@ void PluginEditor::layoutPlayScreen(float scale)
     const float panelHeight =
         2.0f * (kTitleHeight + kPanelRowHeight + kRowGap) + (kTitleHeight + kStripHeight + kRowGap);
     const float knobCaption = 34.0f;
-    const float knobsHeight = kTitleHeight + 10.0f + kPlayKnobSize + knobCaption + kPlayHintHeight;
+    const float knobsHeight = kTitleHeight + 10.0f + kPlayKnobSize + knobCaption;
     const float blockHeight = kStageHeight + kStageGap + knobsHeight;
     const float y = top + (panelHeight - blockHeight) / 2.0f;
 
@@ -224,7 +250,7 @@ void PluginEditor::layoutPlayScreen(float scale)
     stage_.setBounds(scaled(stagePanel_.reduced(kStageInset, kStageInset * 0.6f)));
 
     const float knobsTop = y + kStageHeight + kStageGap;
-    marks_.push_back({"SOUND", {kMargin, knobsTop, contentWidth, kTitleHeight}, true});
+    marks_.push_back({"MACROS", {kMargin, knobsTop, contentWidth, kTitleHeight}, true});
     const float cell = contentWidth / static_cast<float>(playKnobs_.size());
     for (std::size_t i = 0; i < playKnobs_.size(); ++i) {
         const float x = kMargin + cell * static_cast<float>(i);
@@ -232,7 +258,6 @@ void PluginEditor::layoutPlayScreen(float scale)
         const juce::Rectangle<float> knob{x + (cell - kPlayKnobSize) / 2.0f, knobY, kPlayKnobSize,
                                           kPlayKnobSize + knobCaption};
         playKnobs_[i]->setBounds(scaled(knob));
-        playHints_[i] = {x, knob.getBottom() + 2.0f, cell, kPlayHintHeight};
     }
 }
 
@@ -247,10 +272,8 @@ void PluginEditor::forEachControl(Visitor&& visitor)
 
 void PluginEditor::showScreen(Screen screen, bool animate)
 {
-    // Leaving PLAY commits what the knobs have done, so the panel shows the sound as it plays.
-    if (screen_ == Screen::Play && screen == Screen::Edit)
-        processor_.bakeAxes();
     screen_ = screen;
+    refreshMacros();
 
     const bool play = screen == Screen::Play;
     playButton_.setToggleState(play, juce::dontSendNotification);
@@ -292,14 +315,6 @@ void PluginEditor::applyScreenMix()
     stage_.setAlpha(mix_);
     stage_.setVisible(mix_ > 0.001f);
     repaint();
-}
-
-void PluginEditor::updateHomeMarkers()
-{
-    for (std::size_t i = 0; i < playKnobs_.size(); ++i) {
-        const auto home = static_cast<dsp::Param>(dsp::index(dsp::Param::HomeWave) + i);
-        playKnobs_[i]->setHomeMarker(processor_.parameter(home)->getValue());
-    }
 }
 
 void PluginEditor::paint(juce::Graphics& g)
@@ -348,12 +363,6 @@ void PluginEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(panel, 10.0f * scale);
         g.setColour(kBorder.withMultipliedAlpha(mix_));
         g.drawRoundedRectangle(panel, 10.0f * scale, 1.0f);
-        g.setFont(mono(9.5f * scale));
-        g.setColour(kDim.withMultipliedAlpha(mix_));
-        for (std::size_t i = 0; i < playKnobs_.size(); ++i) {
-            g.drawText(playKnobs()[i].hint, (playHints_[i] * scale).toNearestInt(),
-                       juce::Justification::centredTop);
-        }
     }
 
     // Section titles, each with a hairline running to the end of its group.
@@ -376,7 +385,7 @@ void PluginEditor::timerCallback()
 {
     pollParameters();
     pollMidi();
-    updateHomeMarkers();
+    refreshMacros();
     keyboard_.followMidi();
 }
 
@@ -393,11 +402,8 @@ void PluginEditor::describe(dsp::Param param)
         note = arrow + choiceText(processor_, dsp::Param::LfoTarget);
 
     const juce::String label = controlLabel(param);
-    const bool playKnob = param >= dsp::Param::AxisWave && param <= dsp::Param::AxisMotion;
     lcd_.showReadout(label.isEmpty() ? juce::String(spec.name).toUpperCase() : label,
-                     playKnob ? juce::String(juce::roundToInt(plain * 100.0f)).toStdString()
-                              : dsp::formatValue(spec, plain),
-                     note);
+                     dsp::formatValue(spec, plain), note);
 }
 
 // Anything that moves a control (mouse, automation, a controller) shows up on the display.
@@ -405,7 +411,8 @@ void PluginEditor::pollParameters()
 {
     std::array<dsp::Param, dsp::kParamCount> moved{};
     std::size_t count = 0;
-    for (std::size_t i = 0; i < dsp::kParamCount; ++i) {
+    // Macro assignments are not shown on the display; the knobs they move are.
+    for (std::size_t i = 0; i < dsp::kSoundParamCount; ++i) {
         const auto param = static_cast<dsp::Param>(i);
         const float position = processor_.parameter(param)->getValue();
         if (std::abs(position - lastPositions_[i]) > kPositionEpsilon)

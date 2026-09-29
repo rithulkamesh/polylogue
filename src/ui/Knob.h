@@ -18,8 +18,6 @@ public:
     void paintOverChildren(juce::Graphics& g) override;
     void resized() override;
 
-    // Marks a position on the ring, such as where a sound was made. Negative hides it.
-    void setHomeMarker(float normalized);
     // Prints the value, 0 to 100, in the middle of the knob.
     void setShowValue(bool show);
 
@@ -38,7 +36,6 @@ private:
     std::unique_ptr<Dial> dial_;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment_;
     juce::TextEditor entry_;
-    float homeMarker_ = -1.0f;
     bool showValue_ = false;
 };
 
